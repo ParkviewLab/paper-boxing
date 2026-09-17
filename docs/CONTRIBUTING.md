@@ -47,11 +47,9 @@ uvx --from "reuse[charset-normalizer]" reuse lint
 
 A PR **can't be merged until the required checks pass**: the workflows in [`.github/workflows/`](../.github/workflows/). Push after each commit. See also the handbook's [`python-tooling.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/python-tooling.md) and [`testing.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/testing.md).
 
-In a git worktree (the handbook's layout), `reuse lint` does not apply the repository's ignore rules, so delete `__pycache__` directories before running it: `find . -name __pycache__ -type d -prune -not -path './.venv/*' -exec rm -rf {} +`.
-
 ## Testing
 
-There are three tiers; what each covers is in [`architecture.md`](architecture.md#tests). The unit and component tier is the `pytest` line above. The contract suite is part of it and runs alone with `uv run pytest tests/contract -q`. The integration tier runs against the compose stack built from the tree and drives the `docker` CLI as well (it inspects the volume through the backend container and stops and starts the backend once); CI runs it on every pull request, and locally it is:
+There are two tiers, and what each covers is in [`architecture.md`](architecture.md#tests). The unit and component tier is the `pytest` line above; the contract suite within it runs alone with `uv run pytest tests/contract -q`. The integration tier runs against the compose stack built from the tree and drives the `docker` CLI as well (it inspects the volume through the backend container and stops and starts the backend once); CI runs it on every pull request, and locally it is:
 
 ```bash
 docker compose -f docker-compose.yml -f tests/integration/compose.build.yml --env-file tests/integration/integration.env up -d --build --wait
@@ -59,17 +57,17 @@ PAPER_BOXING_INTEGRATION=1 uv run pytest -m integration -q
 docker compose -f docker-compose.yml -f tests/integration/compose.build.yml --env-file tests/integration/integration.env down -v
 ```
 
-Without `PAPER_BOXING_INTEGRATION=1` the tier is skipped when no stack answers, so a plain `uv run pytest` passes on a machine with no stack; with it, an unreachable stack fails. `PAPER_BOXING_INTEGRATION_HOST` (default `127.0.0.1`) is the host at which the tier reaches the published ports.
+`PAPER_BOXING_INTEGRATION_HOST` (default `127.0.0.1`) is the host at which the tier reaches the published ports.
 
 The fake backend is the idiom behind the frontend's and the MCP server's tests. `paper_boxing.common.fake_backend.create_fake_backend()` is an in-memory implementation of the whole contract, a faithful model rather than a stub. The frontend and the MCP server each hold one `httpx.AsyncClient` wrapped in `BackendClient`, and every call passes the caller's token explicitly; a test points that client at the fake by building it with `httpx.ASGITransport(app=create_fake_backend(...))`, through the one seam each component exposes for it: `server.http_client_factory` for the MCP server, the `http_client_factory` argument of `install()` for the frontend. The fake's state is `app.state.fake` (`FakeState`): `add_user`, `issue_session`, `issue_agent_token`, `revoke`, `clock.advance(seconds)` for expiry, and `requests` (every call with its route name, token id and Via header), which is how a test proves that a token was confirmed on each request. `tests/contract/conftest.py` shows the idiom, and `tests/conftest.py` the MCP fixtures: one session-scoped `TestClient`, because the session manager refuses to start twice, with the environment set before the server module is imported.
 
-The contract suite, `tests/contract/`, is parametrised over the two implementations of the contract: `fake`, the in-memory backend, and `real`, the backend proper over a temporary data directory with the cheap argon2 profile from `tests/_backend_helpers.py`. The backend registers its routes from the table in `common/routes.py`, as the fake does, so the two cannot drift, and the same tests passing against both is what proves them identical. The `real` leg assumes a case-sensitive filesystem, as CI's Linux is. On macOS's default case-insensitive filesystem two paths that differ only by case name the same file; that is a limitation of local development, not a defect.
+In the contract suite, the `real` leg is the backend proper over a temporary data directory with the cheap argon2 profile from `tests/_backend_helpers.py`; it assumes a case-sensitive filesystem, as CI's Linux is. On macOS's default case-insensitive filesystem two paths that differ only by case name the same file; that is a limitation of local development, not a defect.
 
 The frontend's tests use NiceGUI's pytest fixtures: load `nicegui.testing.user_plugin` (not `nicegui.testing.plugin`, which imports selenium). The `user` fixture executes `tests/frontend_main.py` afresh per test (`main_file` in `pyproject.toml`), which installs the frontend against a fake backend; `tests/frontend_fixtures.py` adds `frontend_state`, the fake behind the test, and `second_user`, another simulated browser with its own cookie jar, for the multi-session tests.
 
 ## The contract between the components
 
-`docs/api.md` and `src/paper_boxing/common/` fix the REST API and the MCP tools that the backend, the frontend and the MCP server share. A change to the contract changes both the document and the code in the same PR, and `tests/contract/` proves the fake backend and the real one identical. `tests/test_import_boundaries.py` keeps the components apart: `common` imports no component, and no component imports another.
+`docs/api.md` and `src/paper_boxing/common/` fix the REST API and the MCP tools that the backend, the frontend and the MCP server share. A change to the contract changes both the document and the code in the same PR; the contract suite and the import-boundary test ([`architecture.md`](architecture.md#the-package-and-the-images)) hold it.
 
 ## Versioning
 
