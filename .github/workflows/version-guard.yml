@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Version guard
+
+# Feature PRs into `develop` must NOT change the version source-of-truth — the
+# bump happens at release, on `main` (see the handbook's releases.md / ci.md).
+# The release back-merge (main→develop) is a direct push, not a PR, so it is not
+# subject to this check.
+#
+# paper-boxing departs from the handbook template in one respect: when the base
+# branch has no version file at all (the scaffold PR that introduces
+# pyproject.toml into an empty develop), the file is new, not bumped, and the
+# check passes. The template compares against an empty string there and fails.
+# Proposed for the handbook's templates/.github/workflows/version-guard.yml.
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  no-version-change:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Version SoT must be unchanged
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE"
+          fail=0
+          flag() { echo "::error::$1 changed in a feature PR — version bumps happen at release on main, not in feature work (handbook releases.md)."; fail=1; }
+          new_file() { echo "$1 is new in this PR (origin/$BASE has none): a first introduction is not a bump."; }
+          if [ -f VERSION.txt ]; then
+            if git cat-file -e "origin/$BASE:VERSION.txt" 2>/dev/null; then
+              old=$(git show "origin/$BASE:VERSION.txt")
+              [ "$(cat VERSION.txt)" = "$old" ] || flag VERSION.txt
+            else
+              new_file VERSION.txt
+            fi
+          fi
+          if [ -f pyproject.toml ]; then
+            if git cat-file -e "origin/$BASE:pyproject.toml" 2>/dev/null; then
+              new=$(grep -E '^version *=' pyproject.toml | head -1 || true)
+              old=$(git show "origin/$BASE:pyproject.toml" | grep -E '^version *=' | head -1 || true)
+              [ "$new" = "$old" ] || flag "pyproject.toml [project].version"
+            else
+              new_file pyproject.toml
+            fi
+          fi
+          if [ -f package.json ]; then
+            if git cat-file -e "origin/$BASE:package.json" 2>/dev/null; then
+              new=$(grep -E '"version"' package.json | head -1 || true)
+              old=$(git show "origin/$BASE:package.json" | grep -E '"version"' | head -1 || true)
+              [ "$new" = "$old" ] || flag "package.json version"
+            else
+              new_file package.json
+            fi
+          fi
+          if [ "$fail" = 0 ]; then echo "version unchanged ✓"; fi
+          exit $fail
