@@ -18,6 +18,10 @@ Whether paper-boxing also serves as the preview of a project's `docs/` site befo
 
 File operations are single-file only (design section 4, decided 2026-09-17). If a need appears for a site to switch from one build to the next with no transient mixed state, it would be one additive route (upload a tree to staging, then swap the site's folder by rename), not a change to the existing ones. Wait for the need.
 
+### Streaming file transfer in the frontend
+
+The frontend's download route and its upload handler hold a whole file in memory between the browser and the backend: `BackendClient.download_file` returns bytes, and an upload is read in full before the `PUT`. A handful of designed pages never notices; a file near the 200 MB cap would. If that need appears, the client gains streaming variants (`httpx` supports both directions) and the route becomes a `StreamingResponse`; nothing in the contract changes.
+
 ### A volume subpath for the site server
 
 The stack mounts the whole data volume read-only into nginx and points `root` at its `sites/` tree, because a Compose `volume.subpath` needs Docker 26 or newer and the deployment host's version is not assured. Once it is, the mount can narrow to `sites/` alone; nothing else changes.

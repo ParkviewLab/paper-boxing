@@ -114,6 +114,10 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                     return []
                 return list(app.storage.tab.get(results_key, []))
 
+            def remember(results: list[dict[str, Any]]) -> None:
+                if ui.context.client.has_socket_connection:  # tab storage exists only once the socket is up
+                    app.storage.tab[results_key] = list(results)
+
             @ui.refreshable
             def upload_results() -> None:
                 results = stored_results()
@@ -155,7 +159,7 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                                 "note": f"{verb}, {layout.human_bytes(result.bytes)}, sha256 {result.sha256[:12]}",
                             }
                         )
-                    app.storage.tab[results_key] = list(results)
+                    remember(results)
                     upload_results.refresh()
                 uploader.reset()
                 await listing.refresh()
