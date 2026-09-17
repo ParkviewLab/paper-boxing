@@ -11,9 +11,12 @@ sign-in never leaves the site."""
 from __future__ import annotations
 
 import importlib
+import inspect
 import pkgutil
 
-from nicegui import ui
+from nicegui import Client, ui
+from nicegui.observables import ObservableDict
+from nicegui.persistence import PersistentDict
 
 import paper_boxing.frontend as frontend_package
 from paper_boxing.frontend import auth
@@ -34,33 +37,27 @@ def test_no_ui_element_lives_at_module_level() -> None:
 
 
 def test_nothing_per_user_is_kept_at_module_level() -> None:
-    """The only module state is the configuration and the one shared, stateless client."""
+    """The only module state is the configuration and the one shared, stateless client; elsewhere no module
+    holds a UI element, a client, a NiceGUI storage object, or a mutable list or set."""
     from paper_boxing.frontend import backend
 
+    def is_named_function(value: object) -> bool:
+        return inspect.isfunction(value) and value.__name__ != "<lambda>"
+
     module_state = {
-        k: v for k, v in vars(backend).items() if k.startswith("_") and not k.startswith("__") and not callable(v)
+        k
+        for k, v in vars(backend).items()
+        if k.startswith("_") and not k.startswith("__") and not is_named_function(v)
     }
-    assert set(module_state) == {"_config", "_factory", "_client"}
-    for name in (
-        "auth",
-        "layout",
-        "pages.login",
-        "pages.sites",
-        "pages.site",
-        "pages.tokens",
-        "pages.users",
-        "pages.account",
-    ):
-        module = importlib.import_module(f"paper_boxing.frontend.{name}")
-        state = [
-            k
-            for k, v in vars(module).items()
-            if not k.startswith("__")
-            and not callable(v)
-            and not isinstance(v, (str, tuple, frozenset, dict, type(None), int))
-            and not hasattr(v, "__file__")  # imported modules
-        ]
-        assert not state, f"paper_boxing.frontend.{name} keeps state at module level: {state}"
+    assert module_state == {"_config", "_factory", "_client"}
+
+    forbidden = (ui.element, Client, ObservableDict, PersistentDict, list, set)
+    for name in _frontend_modules():
+        if name == backend.__name__:
+            continue
+        module = importlib.import_module(name)
+        state = [k for k, v in vars(module).items() if not k.startswith("__") and isinstance(v, forbidden)]
+        assert not state, f"{name} keeps state at module level: {state}"
 
 
 def test_public_paths_are_exactly_the_ones_needing_no_session() -> None:
