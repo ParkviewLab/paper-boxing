@@ -6,24 +6,30 @@
 
 `api` is a fresh backend per test with one bootstrap account, and `actors`
 holds a bearer token of every kind: a session, an agent token per scope, and
-a revoked one. The suite runs against the fake backend here; the backend
-worker adds the real app as a second `api` parameter (a `TestClient` over
-`paper_boxing.backend.app` with a temporary data directory and the admin
-bootstrap variables set) and the same tests then prove the two identical.
+a revoked one. The suite is parametrised over the two implementations of
+the contract: `fake`, the in-memory backend in `common/`, and `real`, the
+backend proper (`paper_boxing.backend.app.create_app` over a temporary data
+directory, with the admin bootstrap set and a cheap argon2 profile so that
+every test's sign-ins stay fast; see `tests/_backend_helpers.py`). The same
+tests passing against both is what proves the two identical.
+
+`clock` moves time forward on either implementation; `fake` exposes the
+fake's state (its request record) and skips on the real backend.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from paper_boxing.backend.clock import Clock
 from paper_boxing.common.fake_backend import FakeState, create_fake_backend
 from paper_boxing.common.scopes import Scope
-
-ADMIN = ("admin", "admin-password")
+from tests._backend_helpers import ADMIN, backend_app, backend_config
 
 
 @dataclass(frozen=True)
@@ -46,17 +52,36 @@ class Actors:
         }[scope]
 
 
-@pytest.fixture(params=["fake"])
-def api(request: pytest.FixtureRequest) -> Iterator[TestClient]:
+@pytest.fixture(params=["fake", "real"])
+def api(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[TestClient]:
     """A fresh backend per test. The bootstrap account is `ADMIN`."""
-    app = create_fake_backend(admin=ADMIN, max_upload_mb=1, session_days=14)
+    if request.param == "fake":
+        app = create_fake_backend(admin=ADMIN, max_upload_mb=1, session_days=14)
+    else:
+        app = backend_app(backend_config(tmp_path / "data", max_upload_mb=1, session_days=14))
     with TestClient(app, base_url="http://localhost") as client:
         yield client
 
 
+def _implementation(request: pytest.FixtureRequest) -> str:
+    """Which `api` parameter the running test has: "fake" or "real"."""
+    return request.node.callspec.params["api"]
+
+
 @pytest.fixture
-def fake(api: TestClient) -> FakeState:
-    """The fake's state, for tests that need the clock or the request record (fake only)."""
+def clock(api: TestClient, request: pytest.FixtureRequest) -> Clock:
+    """The backend's clock, whichever implementation is under test. `advance(seconds)` moves the time
+    that stamps accounts, sessions and a site's `created_at`; a file's `modified_at` comes from the
+    filesystem and does not move with it."""
+    state = api.app.state  # type: ignore[attr-defined]
+    return state.fake.clock if _implementation(request) == "fake" else state.clock
+
+
+@pytest.fixture
+def fake(api: TestClient, request: pytest.FixtureRequest) -> FakeState:
+    """The fake's state, for tests that need its request record (fake only)."""
+    if _implementation(request) == "real":
+        pytest.skip("the request record is the fake backend's own; the real one logs instead")
     return api.app.state.fake  # type: ignore[attr-defined]
 
 

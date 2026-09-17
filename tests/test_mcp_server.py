@@ -3,14 +3,17 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 """The MCP server's transport plumbing: the ops endpoints, the /mcp verbs, the
-legacy /sse path, and a successful initialize handshake through /mcp."""
+legacy /sse path, every HTTP error in the contract's body, and a successful
+initialize handshake through /mcp with an agent token."""
 
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
 from paper_boxing.common.config import VERSION
-from paper_boxing.common.schema import Health
+from paper_boxing.common.fake_backend import FakeState
+from paper_boxing.common.schema import ErrorBody, ErrorCode, Health
+from paper_boxing.common.scopes import Scope
 from tests._mcp_helpers import initialize
 
 
@@ -32,20 +35,31 @@ def test_docs(mcp_client: TestClient) -> None:
     assert mcp_client.get("/docs").status_code == 200
 
 
-def test_mcp_get_and_delete_answer_405(mcp_client: TestClient) -> None:
-    assert mcp_client.get("/mcp").status_code == 405
-    assert mcp_client.delete("/mcp").status_code == 405
+def test_mcp_get_and_delete_answer_405_in_the_contract_shape(mcp_client: TestClient) -> None:
+    for method in ("GET", "DELETE"):
+        resp = mcp_client.request(method, "/mcp")
+        assert resp.status_code == 405, method
+        assert ErrorBody.model_validate(resp.json()).error.code is ErrorCode.METHOD_NOT_ALLOWED
 
 
 def test_legacy_sse_answers_405_naming_mcp(mcp_client: TestClient) -> None:
     for method in ("GET", "POST", "DELETE"):
         resp = mcp_client.request(method, "/sse")
         assert resp.status_code == 405, method
-        assert "/mcp" in resp.json()["message"]
+        body = ErrorBody.model_validate(resp.json())
+        assert body.error.code is ErrorCode.METHOD_NOT_ALLOWED
+        assert "/mcp" in body.error.message
 
 
-def test_initialize_handshake(mcp_client: TestClient) -> None:
-    result = initialize(mcp_client)
+def test_unknown_path_is_404_in_the_contract_shape(mcp_client: TestClient) -> None:
+    resp = mcp_client.get("/nowhere")
+    assert resp.status_code == 404
+    assert ErrorBody.model_validate(resp.json()).error.code is ErrorCode.NOT_FOUND
+
+
+def test_initialize_handshake(mcp_client: TestClient, fake_state: FakeState) -> None:
+    _, secret = fake_state.issue_agent_token("admin", "handshake", Scope.READ_ONLY)
+    result = initialize(mcp_client, token=secret)
     assert result["serverInfo"]["name"] == "paper-boxing-mcp"
     assert result["serverInfo"]["version"] == VERSION
 

@@ -84,6 +84,12 @@ def test_annotations_match_scope(spec) -> None:
     assert ann.openWorldHint is False
 
 
+def test_upload_file_leaves_idempotency_unsaid() -> None:
+    """Whether a repeated upload is idempotent depends on `overwrite`, so the hint is not claimed."""
+    assert spec_for(SPECS, "upload_file").annotations.idempotentHint is None
+    assert spec_for(SPECS, "create_site").annotations.idempotentHint is False
+
+
 def test_large_files_are_pointed_at_the_rest_api() -> None:
     for name in ("upload_file", "download_file"):
         description = spec_for(SPECS, name).description

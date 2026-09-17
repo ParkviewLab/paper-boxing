@@ -11,12 +11,16 @@ client side is `paper_boxing.common.client.BackendError`.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from paper_boxing.common.schema import ErrorBody, ErrorCode, ErrorDetail
+
+logger = logging.getLogger(__name__)
 
 
 class ApiError(Exception):
@@ -29,9 +33,11 @@ class ApiError(Exception):
         self.message = message
 
 
-def error_response(status: int, code: ErrorCode, message: str) -> JSONResponse:
+def error_response(
+    status: int, code: ErrorCode, message: str, *, headers: dict[str, str] | None = None
+) -> JSONResponse:
     body = ErrorBody(error=ErrorDetail(code=code, message=message))
-    return JSONResponse(body.model_dump(mode="json"), status_code=status)
+    return JSONResponse(body.model_dump(mode="json"), status_code=status, headers=headers)
 
 
 _STATUS_CODES: dict[int, ErrorCode] = {
@@ -66,7 +72,10 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _unexpected(request: Request, exc: Exception) -> JSONResponse:
-        return error_response(500, ErrorCode.INTERNAL_ERROR, f"{type(exc).__name__}: {exc}")
+        # The diagnostic goes to the server log; the body says nothing about the exception, whose
+        # text may carry a host path or another detail that is not the client's.
+        logger.exception("unhandled exception on %s %s", request.method, request.url.path)
+        return error_response(500, ErrorCode.INTERNAL_ERROR, "internal error")
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

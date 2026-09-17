@@ -53,6 +53,7 @@ dev = [
     "httpx",
     "ruff",
     "ty",
+    "jsonschema>=4.26.0",
 ]
 
 [build-system]

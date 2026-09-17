@@ -103,3 +103,5 @@ The volume's name is the compose project's name plus `_paper-boxing-data`; `dock
 - Site URLs shown by the UI point at the wrong host: `PAPER_BOXING_PUBLIC_SITES_URL` is wrong; it must be the address people use, not the container's.
 - Portainer rejects the compose file at `configs`: its Compose is older than 2.23.1; use the bind-mounted nginx configuration described above.
 - The frontend exits at start with a message about `PAPER_BOXING_STORAGE_SECRET`: set the variable.
+- The backend exits at start with a message about `PAPER_BOXING_ADMIN_USERNAME` or `PAPER_BOXING_ADMIN_PASSWORD`: no account exists yet and the pair does not meet the rules for an account (the username `[A-Za-z0-9][A-Za-z0-9._-]*` of at most 64 characters, the password at least 8); fix the variables and update the stack. Once an account exists the pair is ignored.
+- A `507 insufficient_storage` from the backend: the data volume is full or over quota. Nothing was half-written; the old file, if there was one, is still whole. Free space and upload again.
