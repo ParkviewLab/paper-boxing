@@ -9,8 +9,8 @@ docs/design.md section 4.
   per hash, the cost settings inside the encoded string). At sign-in, a hash
   made under lower settings than the current ones is re-hashed.
 - A token is 32 random bytes shown as `pb_` followed by 43 URL-safe base64
-  characters. Only its sha256 digest is stored; a presented secret is hashed,
-  looked up, and the stored digest compared in constant time. Every use is
+  characters. Only its sha256 digest is stored; a presented secret is hashed
+  and looked up by that digest, so no secret is ever compared. Every use is
   recorded.
 - A session, issued at sign-in, expires after a sliding period; every
   authenticated request moves its expiry forward. An agent token does not
@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
-import hmac
 import logging
 import secrets
 from dataclasses import dataclass, replace
@@ -218,19 +217,14 @@ class Accounts:
         malformed, revoked or expired. A valid token has its use recorded and, for a session, its
         expiry moved forward.
 
-        The lookup is by the secret's sha256 digest, which is what the table indexes; the stored
-        digest is then compared with `hmac.compare_digest`, so the final decision does not depend on
-        where a mismatch falls.
+        The lookup is by the secret's sha256 digest, which the table indexes: the secret itself is
+        never compared, and a digest either is a key or is not.
         """
         secret = parse_bearer(header)
         if secret is None:
             return None
-        digest = secret_digest(secret)
-        found = self._db.token_by_secret(digest)
-        if found is None:
-            return None
-        token, stored = found
-        if not hmac.compare_digest(stored, digest):
+        token = self._db.token_by_secret(secret_digest(secret))
+        if token is None:
             return None
         now = self._clock.now()
         if token.revoked_at is not None:
