@@ -33,9 +33,11 @@ class ApiError(Exception):
         self.message = message
 
 
-def error_response(status: int, code: ErrorCode, message: str) -> JSONResponse:
+def error_response(
+    status: int, code: ErrorCode, message: str, *, headers: dict[str, str] | None = None
+) -> JSONResponse:
     body = ErrorBody(error=ErrorDetail(code=code, message=message))
-    return JSONResponse(body.model_dump(mode="json"), status_code=status)
+    return JSONResponse(body.model_dump(mode="json"), status_code=status, headers=headers)
 
 
 _STATUS_CODES: dict[int, ErrorCode] = {

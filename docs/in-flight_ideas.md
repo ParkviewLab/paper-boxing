@@ -30,6 +30,10 @@ The handbook's `docs-site.md` (a GitHub Pages site built from `main`) is not par
 
 The handbook's on-demand dev build, publishing `:dev` images only (design section 3). Not adopted in the scaffold; adopt if a candidate needs exercising on the host before a release.
 
+### Auth helpers duplicated between the MCP server and `common/`
+
+The MCP server parses `Authorization: Bearer` (`mcp/auth.py`, `bearer_from`) and joins a pydantic validation error into one message (`mcp/tools.py`, `_validation_message`) with code of its own, duplicating what the fake backend and `common/errors.py` do. Deferred by the review of the MCP pull request on 2026-09-17 rather than touching `common/` while the three components are built in parallel: once the backend, frontend and MCP pull requests have merged, move both into `common/` in one refactor, so that the three components parse a bearer and describe a validation failure identically.
+
 ### Rules duplicated between the fake backend and the real one
 
 The bearer parsing, the `Content-Disposition` builder, the authorization ladder, the `Clock`, the path-to-`ApiError` wrapper, and the scope `CHECK` constraints that restate the enum exist twice: in `common/fake_backend.py` and in `backend/`. Deferred by the review of the backend pull request: they move into `common/` in one refactor after all three components have merged, so that no worker's branch is disturbed in flight.

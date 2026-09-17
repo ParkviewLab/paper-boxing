@@ -31,9 +31,10 @@ Every error response has the body `{"error": {"code": "<code>", "message": "<tex
 | 413 | `payload_too_large` |
 | 422 | `validation_error` (a body or parameter failed validation) |
 | 500 | `internal_error` |
+| 503 | `backend_unreachable` is the MCP server's own: the backend could not be reached, or did not confirm a token as this contract says |
 | 507 | `insufficient_storage` (disk full or quota; nothing half-written) |
 
-The MCP server answers its own HTTP errors in the same shape: `401 unauthorized` for a token the backend does not confirm and `403 wrong_token_type` for a session token (`design.md`, section 4a).
+The MCP server answers its own HTTP errors in the same shape: `401 unauthorized` for a token the backend does not confirm, `403 wrong_token_type` for a session token, and `503 backend_unreachable` when the backend cannot be reached or does not answer the confirmation as this contract says (`design.md`, section 4a).
 
 ### Access
 

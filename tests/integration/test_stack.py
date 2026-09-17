@@ -5,9 +5,10 @@
 """The compose stack: /health on the three services, the MCP handshake over the
 published port, and nginx serving a site from the data volume.
 
-The site files are placed in the volume through the backend container, since
-the scaffold has no upload route yet; the integration PR replaces that with
-uploads through the API and through MCP.
+The MCP handshake authenticates with an agent token minted through the real
+backend. The site files are still placed in the volume through the backend
+container; the integration PR replaces that with uploads through the API and
+through MCP.
 """
 
 from __future__ import annotations
@@ -48,6 +49,25 @@ def test_one_version_for_the_stack() -> None:
     assert names == {"paper-boxing-backend", "paper-boxing-frontend", "paper-boxing-mcp"}
 
 
+def _agent_token(scope: str = "read_only") -> str:
+    """Sign in to the real backend with the stack's admin pair and mint an agent token."""
+    login = httpx.post(
+        f"{BACKEND}/api/v1/auth/login",
+        json={"username": "admin", "password": "integration-password"},
+        timeout=10.0,
+    )
+    assert login.status_code == 200, login.text
+    session = login.json()["token"]
+    created = httpx.post(
+        f"{BACKEND}/api/v1/tokens",
+        json={"name": "integration", "scope": scope},
+        headers={"Authorization": f"Bearer {session}"},
+        timeout=10.0,
+    )
+    assert created.status_code == 201, created.text
+    return created.json()["secret"]
+
+
 def test_mcp_initialize_over_the_published_port() -> None:
     payload = {
         "jsonrpc": "2.0",
@@ -59,17 +79,29 @@ def test_mcp_initialize_over_the_published_port() -> None:
             "clientInfo": {"name": "it", "version": "0"},
         },
     }
+    accept = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
+    # Every request to /mcp needs a bearer, the handshake included (design.md, section 4a).
+    anonymous = httpx.post(f"{MCP}/mcp", json=payload, headers=accept, timeout=10.0)
+    assert anonymous.status_code == 401, anonymous.text
+    assert anonymous.json()["error"]["code"] == "unauthorized"
+    token = _agent_token()
     resp = httpx.post(
         f"{MCP}/mcp",
         json=payload,
-        headers={"Accept": "application/json, text/event-stream", "Content-Type": "application/json"},
+        headers={**accept, "Authorization": f"Bearer {token}"},
         timeout=10.0,
     )
     assert resp.status_code == 200, resp.text
     assert "paper-boxing-mcp" in resp.text
     assert httpx.get(f"{MCP}/mcp", timeout=5.0).status_code == 405
-    foreign = httpx.post(f"{MCP}/mcp", json=payload, headers={"Host": "evil.example.com"}, timeout=5.0)
+    foreign = httpx.post(
+        f"{MCP}/mcp",
+        json=payload,
+        headers={**accept, "Authorization": f"Bearer {token}", "Host": "evil.example.com"},
+        timeout=5.0,
+    )
     assert foreign.status_code == 421
+    assert foreign.json()["error"]["code"] == "forbidden"
 
 
 @pytest.fixture(scope="module")
