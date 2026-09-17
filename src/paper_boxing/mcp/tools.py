@@ -373,7 +373,8 @@ async def dispatch(
             f"the tool {name} needs the {spec.scope.value} scope; the token has {scope.value}",
         )
     try:
-        args = spec.input_model.model_validate(arguments)
+        # Strict, so that what the published inputSchema refuses (a string for a boolean) is refused here too.
+        args = spec.input_model.model_validate(arguments, strict=True)
     except ValidationError as e:
         raise ToolError(ErrorCode.VALIDATION_ERROR.value, _validation_message(e)) from e
     try:
