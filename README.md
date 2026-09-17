@@ -32,7 +32,7 @@ paper-boxing runs in Docker, either with `docker compose` or as a Portainer stac
 ```bash
 cp .env.example .env          # set the public sites URL, the admin password, the storage secret and the MCP allowed hosts
 docker compose up -d
-docker compose ps             # the four containers, three of them healthy (nginx has no health check)
+docker compose ps             # four containers; frontend and mcp show "health: starting" for a few seconds; nginx has no health check
 curl http://127.0.0.1:35843/health
 ```
 

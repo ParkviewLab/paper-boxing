@@ -219,7 +219,7 @@ The nginx configuration is short:
 - `add_header Cache-Control "no-cache"`, so a replaced file shows at once, still revalidated through ETag;
 - the default MIME types plus `.mjs` and `.webmanifest`.
 
-It mounts the data volume read-only, with `root` pointing at its `sites/` tree; nothing outside that tree is reachable over HTTP. A site's root serves its `index.html`, or the listing when there is none. Links relative to the site work; links starting from the host root such as `/css/x.css` do not, and the README says so.
+It mounts the data volume read-only, with `root` pointing at its `sites/` tree; nothing outside that tree is reachable over HTTP, and the server root itself, `/`, lists the site folders, a consequence of the listing decision above. A site's root serves its `index.html`, or the listing when there is none. Links relative to the site work; links starting from the host root such as `/css/x.css` do not, and the README says so.
 
 ## 7. Tests
 

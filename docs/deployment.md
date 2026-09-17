@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Deployment
 
-How to build the paper-boxing stack and how to run it, with `docker compose` or as a Portainer stack. It is written for any reader of the public repository and names no private host or secret: `<host>` stands for the name or address at which your LAN reaches the Docker host, `<token>` for an agent token you created, `<project>` for the compose project or Portainer stack name. Where an example needs a concrete host name it uses `trixie.local`; substitute your own. Every command below was run against a stack built from this tree, with one exception: `docker compose pull` of the released images cannot run until the first release has published them.
+How to build the paper-boxing stack and how to run it, with `docker compose` or as a Portainer stack. It is written for any reader of the public repository and names no private host or secret: `<host>` stands for the name or address at which your LAN reaches the Docker host, `<token>` for an agent token you created, `<project>` for the compose project or Portainer stack name. Where an example needs a concrete host name it uses `trixie.local`; substitute your own. Every `docker`, `curl` and `claude` command below was run against a stack built from this tree, either with the integration override or with the locally built images tagged under the GHCR names, since no image is published before the first release; `docker compose pull` of the released images is the one command that could not run. The Portainer walkthrough is derived from the compose file and from Portainer's documented behaviour; it was not exercised in a Portainer.
 
 The deployment model, stated plainly (the README says the same): one person's private LAN, plain HTTP, no TLS, no lockout after failed sign-ins. Passwords and tokens travel unencrypted between a browser or an agent and the stack. Do not expose the ports to the internet.
 
@@ -33,48 +33,48 @@ docker build --target frontend -t paper-boxing-frontend .
 docker build --target mcp      -t paper-boxing-mcp      .
 ```
 
-The three share the dependency layers (the uv base image and the lock file), so after the first build the other two are mostly cache hits. The same builds run through compose with the override the integration tier uses, which tags the images `paper-boxing-<service>:local` so that a pulled image is never shadowed, and starts the stack from them with the tier's settings:
+The three targets share the base stage (the uv image with `pyproject.toml` and `uv.lock` copied in) and uv's download cache, which is mounted into each build; their dependency layers differ, because each target installs a different extra. The same build runs through compose with the override the integration tier uses, which tags the images `paper-boxing-<service>:local` so that a pulled image is never shadowed, and starts the stack from them with the tier's settings:
 
 ```bash
-docker compose -f docker-compose.yml -f tests/integration/compose.build.yml \
-  --env-file tests/integration/integration.env build
 docker compose -f docker-compose.yml -f tests/integration/compose.build.yml \
   --env-file tests/integration/integration.env up -d --build --wait
 ```
 
-`--wait` returns once every container with a health check is healthy. `PAPER_BOXING_INTEGRATION=1 uv run pytest -m integration -q` then runs the integration tier against that stack, and `down -v` with the same `-f` and `--env-file` arguments removes it, volume included. The values in `integration.env` are for that stack only.
+`--wait` returns once every container with a health check is healthy; the same arguments with `build` in place of `up -d --build --wait` build the images without starting anything. `PAPER_BOXING_INTEGRATION=1 uv run pytest -m integration -q` then runs the integration tier against that stack, and `down -v` with the same `-f` and `--env-file` arguments removes it, volume included. The values in `integration.env` are for that stack only.
 
 ## The compose file, service by service
 
-[`docker-compose.yml`](../docker-compose.yml) is a copy-and-edit example. Every operator setting is a `${...}` variable read from a `.env` file beside the compose file, or from the stack's environment in Portainer, so the file itself is used unchanged. Two variables are secrets and have no default: compose refuses to start until they are set. [`.env.example`](../.env.example) lists every variable; the README's Configuration tables give every default.
+[`docker-compose.yml`](../docker-compose.yml) is a copy-and-edit example. Every operator setting is a `${...}` variable read from a `.env` file beside the compose file, or from the stack's environment in Portainer, so the file itself is used unchanged. Two variables are secrets and have no default: compose refuses to start until they are set. [`.env.example`](../.env.example) lists every variable the compose file reads; the README's Configuration tables give every variable the services read, with its default.
 
 | Variable | Read by | Secret | What it is |
 |---|---|---|---|
 | `PAPER_BOXING_PUBLIC_SITES_URL` | backend, frontend, mcp | no | the site server as people and links reach it, `http://<host>:35841`; every site's URL is built from it, so it is part of every link placed elsewhere and does not change afterwards. Unset, the file's placeholder `http://CHANGE-ME:35841` is used and the UI shows unusable links |
-| `PAPER_BOXING_ADMIN_USERNAME` | backend | no | the first account, created at the first start only when no account exists (default `admin`; the same rules as any account: `[A-Za-z0-9][A-Za-z0-9._-]*`, at most 64 characters) |
+| `PAPER_BOXING_ADMIN_USERNAME` | backend | no | the first account, created at the first start only when no account exists (the compose file defaults it to `admin`; the same rules as any account: `[A-Za-z0-9][A-Za-z0-9._-]*`, at most 64 characters) |
 | `PAPER_BOXING_ADMIN_PASSWORD` | backend | yes, required | its password, at least 8 characters. Ignored once any account exists, so it may be removed from the stack after the first sign-in |
-| `PAPER_BOXING_MAX_UPLOAD_MB` | backend | no | the size cap of one uploaded file, in MiB (default 200) |
-| `PAPER_BOXING_SESSION_DAYS` | backend | no | the sliding expiry of a UI session, in days (default 14) |
+| `PAPER_BOXING_MAX_UPLOAD_MB` | backend | no | the size cap of one uploaded file, in MiB |
+| `PAPER_BOXING_SESSION_DAYS` | backend | no | the sliding expiry of a UI session, in days |
 | `PAPER_BOXING_STORAGE_SECRET` | frontend | yes, required | a long random string that signs the per-browser session cookie; `openssl rand -hex 32` makes one. Changing it signs everyone out |
-| `PAPER_BOXING_MCP_MAX_FILE_MB` | mcp | no | the largest file a tool call carries, in MiB (default 8); larger files go through the REST API |
+| `PAPER_BOXING_MCP_MAX_FILE_MB` | mcp | no | the largest file a tool call carries, in MiB; larger files go through the REST API |
 | `PAPER_BOXING_MCP_ALLOWED_HOSTS` | mcp | no | the `Host` values agents connect with, comma-separated; `<host>:*` matches any port. A request with another Host gets 421 (DNS-rebinding protection). The file's default keeps the loopback names and adds a `CHANGE-ME:35842` placeholder |
 | `PAPER_BOXING_MCP_ALLOWED_ORIGINS` | mcp | no | browser origins allowed on `/mcp` and for CORS; empty keeps the loopback defaults. Only a browser-based MCP client sends an Origin; Claude Code and other non-browser clients send none and pass |
 
 Two settings are fixed in the file because they describe the stack itself: `PAPER_BOXING_DATA_DIR=/data` in the backend, and `PAPER_BOXING_BACKEND_URL=http://backend:35843` in the frontend and the MCP server, which reach the backend by its service name on the compose network. The backend's port is published as well, so that an agent can `PUT` a file larger than the MCP cap straight to the REST API with the same token; nothing else needs it from outside.
 
-`backend` publishes 35843, mounts the data volume at `/data`, and has a health check on `/health`. `frontend` publishes 35840 and `mcp` 35842; both start once the backend is healthy (`depends_on` with `condition: service_healthy`) and have health checks of their own. Their start periods are 10 to 15 seconds, so `docker compose ps` shows them as `health: starting` for that long after a start. `sites` publishes 35841 and has no health check; `ps` shows it as `Up`.
+`backend` publishes 35843 and mounts the data volume at `/data`. `frontend` publishes 35840 and `mcp` 35842, and both are started once the backend is healthy (`depends_on` with `condition: service_healthy`). The health checks are `HEALTHCHECK` instructions in the Dockerfile, one per image, each probing its own `/health` every 15 seconds; `depends_on` waits on the backend's. A container is healthy at its first successful probe, a few seconds after it starts; its start period (10 seconds for the backend and the MCP server, 15 for the frontend) is the window in which a failed probe does not count against the three retries, not a delay before health. `sites` publishes 35841 and has no health check; `ps` shows it as `Up`.
 
 The data volume is a named volume, `paper-boxing-data`, by default; Docker names it `<project>_paper-boxing-data`, where the project is the directory holding the compose file, or the stack's name in Portainer, and `docker volume ls` shows it. It survives `docker compose down`; only `down -v` deletes it. The bind-mount alternative is in the file as a comment: a host directory (`mkdir -p /srv/paper-boxing`) in place of the named volume in the backend's `volumes` and, read-only, in the site server's. Its files can be browsed and backed up from the host; they appear root-owned there, because the containers run as root.
 
 ### The nginx configuration
 
-`sites` is a stock `nginx:stable-alpine` whose configuration is inline in the compose file, as a Compose `configs` entry with `content` mounted at `/etc/nginx/conf.d/default.conf`; so the stack is one file that can be pasted into Portainer's editor. Inline `content` needs Compose 2.23.1 or newer; if a Portainer rejects the file for that reason, write the block to a file on the host and bind-mount it at `/etc/nginx/conf.d/default.conf:ro` instead. The whole data volume is mounted read-only and `root` points at its `sites/` tree, so nothing beside that tree (the database, the staging area) is reachable over HTTP, and the mount works on every Docker version (a volume `subpath` would need Docker 26). The root of the site server itself, `http://<host>:35841/`, is the `sites/` folder, and `autoindex` lists the site folders there too.
+`sites` is a stock `nginx:stable-alpine` whose configuration is inline in the compose file, as a Compose `configs` entry with `content` mounted at `/etc/nginx/conf.d/default.conf`; so the stack is one file that can be pasted into Portainer's editor. Inline `content` was introduced in Docker Compose 2.23.1 (the [Compose file reference for `configs`](https://docs.docker.com/reference/compose-file/configs/) says so under `content`); in Portainer, what counts is the Compose that Portainer bundles for its stack deployer, not the `docker compose` on the host. If a Portainer rejects the file for that reason, fall back to a file on the host: write the `server { ... }` block to `/srv/paper-boxing/nginx-default.conf` with a single `$` in `$uri` (the doubling is compose's escaping and does not apply to a plain file), remove the `configs:` block from the `sites` service and the top-level `configs:` section, and add `- /srv/paper-boxing/nginx-default.conf:/etc/nginx/conf.d/default.conf:ro` to the `sites` service's `volumes`. The whole data volume is mounted read-only and `root` points at its `sites/` tree, so nothing beside that tree (the database, the staging area) is reachable over HTTP, and the mount works on every Docker version (a volume `subpath` would need Docker 26). The root of the site server itself, `http://<host>:35841/`, is the `sites/` folder, and `autoindex` lists the site folders there too. The site server has no authentication: anyone who can reach port 35841 can list every site and read every file, and that is the accepted model for a private LAN, stated here as the northstar asks. Whoever wants the root closed adds `location = / { return 404; }` to the inline configuration; nothing can be uploaded at the root to hide the listing, because the root is not a site.
 
 What the directives do: `index index.html` serves a site's or a folder's `index.html` at its address; `autoindex on` (with `autoindex_exact_size off` and `autoindex_localtime on`) makes nginx list a folder that has none, which is what one wants of a site of a few hand-made pages before it has an index; `try_files $uri $uri/ =404` keeps a missing path a 404; `add_header Cache-Control "no-cache"` makes a replaced file show at once (the browser revalidates through the `ETag` on every request); and `types` adds `application/javascript` for `.mjs` and `application/manifest+json` for `.webmanifest` to the stock `mime.types`, which already covers `.html`, `.css`, `.js`, `.svg`, `.png`, `.woff2` and the rest. (In the compose file the `$` of `$uri` is written `$$`, which is how a literal dollar is spelt there.)
 
 `absolute_redirect off` is there because nginx redirects `/<slug>` to `/<slug>/` (a folder's address needs the trailing slash), and by default it writes that redirect as an absolute URL from its own point of view: the host it was asked for and the port it listens on, which is 80 inside the container and is therefore omitted. A browser following `Location: http://<host>/<slug>/` lands on port 80 of the host, not on 35841, and the link breaks. With the directive off, the redirect is the path alone, `Location: /<slug>/`, and the browser keeps the host and port it used. The integration tier checks this on every run.
 
 ## Running with docker compose
+
+Until the first release has published the images, `docker compose up -d` as written fails at the pull with `manifest unknown`. Use the integration override above, or build the images and tag them under the GHCR names (`docker tag paper-boxing-backend:local ghcr.io/parkviewlab/paper-boxing-backend:latest`, and the same for `frontend` and `mcp`); the commands in this section were run that way.
 
 ```bash
 cp .env.example .env    # then edit it: the sites URL, the admin password, the storage secret, the MCP hosts
@@ -93,7 +93,7 @@ PAPER_BOXING_STORAGE_SECRET=<the output of: openssl rand -hex 32>
 PAPER_BOXING_MCP_ALLOWED_HOSTS=trixie.local:35842,localhost:*,127.0.0.1:*
 ```
 
-`docker compose ps` lists the four containers; the backend is `healthy` within a few seconds, the frontend and the MCP server after their start periods, and `paper-boxing-sites` is `Up` (it has no health check). `/health` on 35843, 35840 and 35842 answers `{"ok": true, "version": "X.Y.Z", "uptime_seconds": ...}`, one version for the three. At the first start the backend's log records the first account, and every start records the settings it runs under:
+`docker compose ps` lists the four containers. Right after `up -d` the backend is `healthy` (five seconds in, in the run above) and the frontend and the MCP server show `health: starting`, because compose returns as soon as the backend is healthy and has only just started them; each is `healthy` at its own first successful probe, a few seconds later. `paper-boxing-sites` is `Up` (it has no health check). `/health` on 35843, 35840 and 35842 answers `{"ok": true, "version": "X.Y.Z", "uptime_seconds": ...}`, one version for the three. At the first start the backend's log records the first account, and every start records the settings it runs under:
 
 ```bash
 docker compose logs backend
@@ -107,7 +107,7 @@ To upgrade, change the three image tags in the compose file to the new version (
 
 ## Running in Portainer
 
-The compose file is written for Portainer's stacks: it uses no build step, no host paths unless you choose the bind mount, and reads every operator setting from the environment.
+This section is derived from the compose file and from Portainer's documented behaviour; it was not exercised in a Portainer for this guide. The compose file is written for Portainer's stacks: it uses no build step, no host paths unless you choose the bind mount, and reads every operator setting from the environment.
 
 Create the stack, named for instance `paper-boxing`, in one of two ways. From the web editor, paste `docker-compose.yml` as it is, and pin a version by editing the three `image:` lines to the same `X.Y.Z` tag if you do not want `latest`. From the repository, give `https://github.com/ParkviewLab/paper-boxing` with the reference of a release tag (`refs/tags/vX.Y.Z`) and the compose path `docker-compose.yml`; the file at that tag names `latest`, so a stack from the repository follows the newest release at each re-deploy, which is what `latest` is for.
 
@@ -125,7 +125,7 @@ For Claude Code, the token goes in the `Authorization` header of a Streamable-HT
 
 ```bash
 claude mcp add --transport http paper-boxing http://<host>:35842/mcp --header "Authorization: Bearer <token>"
-claude mcp list        # paper-boxing: http://<host>:35842/mcp (HTTP) - ✔ Connected
+claude mcp list        # lists the server with its connection state, Connected
 claude mcp get paper-boxing
 claude mcp remove paper-boxing
 ```
@@ -144,13 +144,13 @@ curl -s -X POST http://<host>:35842/mcp \
 # data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"experimental":{},"tools":{"listChanged":false}},"serverInfo":{"name":"paper-boxing-mcp","version":"0.1.0"}}}
 ```
 
-The MCP server confirms the token with the backend on every request and accepts agent tokens only: a UI session token is refused with `403 wrong_token_type`, an unknown or revoked one with `401 unauthorized`. A tool call carries a file of up to `PAPER_BOXING_MCP_MAX_FILE_MB`; for a larger file the tool's error message points at the REST route, `PUT` or `GET /api/v1/sites/<site>/files/<path>` on `http://<host>:35843`, which the same agent token opens.
+The MCP server confirms the token with the backend on every request and accepts agent tokens only: a UI session token is refused with `403 wrong_token_type`, an unknown or revoked one with `401 unauthorized`. A tool call carries a file of up to `PAPER_BOXING_MCP_MAX_FILE_MB`; for a larger file the refusal names the REST route, `PUT` or `GET /api/v1/sites/<site>/files/<path>`, which the same agent token uses on the backend's published port, `http://<host>:35843`.
 
 ## Backing up and restoring `/data`
 
 The volume holds three things, and they are backed up differently. `sites/` is plain files: archive it as it is. `staging/` holds uploads in progress and is emptied at every start: skip it. `paper-boxing.sqlite3` is a SQLite database in WAL mode, and while the backend runs its recent writes sit in `paper-boxing.sqlite3-wal` beside it; copying the file alone, or the pair mid-write, gives a copy that may be inconsistent or that misses the newest tokens and sites. SQLite's own backup command writes a consistent snapshot of the database while it is in use, and that is the copy to keep.
 
-The backend image has no `sqlite3` binary, so run the backup from a throwaway Alpine container that mounts the volume and a host directory; the stack keeps running meanwhile:
+The backend image has no `sqlite3` binary, so run the backup from a throwaway Alpine container that mounts the volume and a host directory; the stack keeps running meanwhile. Confirm the volume's name with `docker volume ls` first: `docker run -v <name>:/data` creates an empty volume under a mistyped name and says nothing.
 
 ```bash
 docker run --rm -v <project>_paper-boxing-data:/data -v "$PWD":/backup alpine:3 sh -c \
@@ -159,7 +159,7 @@ docker run --rm -v <project>_paper-boxing-data:/data -v "$PWD":/backup alpine:3 
 
 The result is `paper-boxing.sqlite3` and `sites.tgz` in the current directory. With the host's `sqlite3`, `sqlite3 paper-boxing.sqlite3 'pragma integrity_check; select slug from sites;'` confirms the copy is a whole database and names the sites it knows. With the bind-mount alternative, the same two commands run on the host directory directly, `sqlite3` permitting; the point stands either way: the database is copied through `.backup`, never as a file while the backend runs.
 
-To restore, on the same host or a new one: stop the backend (stop the stack, or `docker compose stop`), put the two things back, and start it again. Remove the old database with its `-wal` and `-shm` files before copying the backup in, so that a stale write-ahead log is not applied to the restored file:
+To restore, on the same host or a new one: stop the backend, with `docker compose stop backend` or by stopping the whole stack, put the two things back, and start it again. The block below stops the stack, the safer of the two: with the backend alone stopped, the frontend and the MCP server keep answering, with errors, against a database that is being replaced. The volume name is the one `docker volume ls` showed for the backup. Remove the old database with its `-wal` and `-shm` files before copying the backup in, so that a stale write-ahead log is not applied to the restored file:
 
 ```bash
 docker compose stop
@@ -182,7 +182,7 @@ What the `files` table in the database means for a restore: it is an index of th
 - A link to a site loses the port, `http://<host>/<slug>/` instead of `http://<host>:35841/<slug>/`: nginx wrote the redirect from `/<slug>` to `/<slug>/` as an absolute URL, because `absolute_redirect off` is missing from its configuration (see above). With the directive, `curl -i http://<host>:35841/<slug>` answers `301` with `Location: /<slug>/`.
 - Site URLs shown by the UI point at `CHANGE-ME` or at the wrong host: `PAPER_BOXING_PUBLIC_SITES_URL` is unset or wrong. It must be the address people use, not the container's.
 - A `507` with code `insufficient_storage` from the backend: the data volume is full or over quota. Nothing was half-written, and the old file, where there was one, is whole; free space and upload again.
-- Portainer rejects the compose file at `configs`: its Compose is older than 2.23.1. Write the nginx block to a file on the host and bind-mount it at `/etc/nginx/conf.d/default.conf:ro`, as described under the nginx configuration.
+- Portainer rejects the compose file at `configs`: the Compose it bundles is older than 2.23.1, which introduced inline `content`. Use the bind-mounted file described under the nginx configuration: the `server` block in `/srv/paper-boxing/nginx-default.conf` with a single `$` in `$uri`, the `configs:` block removed from the `sites` service and the top-level `configs:` section removed, and `- /srv/paper-boxing/nginx-default.conf:/etc/nginx/conf.d/default.conf:ro` added to the `sites` service's `volumes`.
 - The stack does not start and compose says `required variable PAPER_BOXING_ADMIN_PASSWORD is missing a value` (or `PAPER_BOXING_STORAGE_SECRET`): the variable is unset in `.env` or in the stack's environment; both are required and have no default.
 - The frontend exits at start with a message about `PAPER_BOXING_STORAGE_SECRET`: it was started outside compose without the variable. Set it.
 - The backend exits at start with a message about `PAPER_BOXING_ADMIN_USERNAME` or `PAPER_BOXING_ADMIN_PASSWORD`: no account exists yet and the pair does not meet the rules (the username `[A-Za-z0-9][A-Za-z0-9._-]*` of at most 64 characters, the password at least 8). Fix the variables and update the stack; once an account exists the pair is ignored.
