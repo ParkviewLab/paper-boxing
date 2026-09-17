@@ -12,15 +12,65 @@ element and no per-user value is created at import time.
 
 from __future__ import annotations
 
+import base64
 import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
+from importlib import resources
 
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError, BackendUnreachable
 from paper_boxing.frontend import auth, backend
+
+# ParkviewLab brand (the handbook's docs/brand.md): the header carries the official horizontal logo
+# from the brand's own files, the white artwork on the brand's deep teal. The file @imports its
+# wordmark font from Google Fonts; that line is replaced at render time with the same face embedded
+# from the vendored woff2 as data, so nothing is fetched. The artwork itself is untouched.
+TEAL_DEEP = "#004f52"
+TEAL = "#00C2C7"
+SAGE = "#90b095"
+PAPER = "#f3eee2"
+_BRAND = resources.files("paper_boxing.frontend").joinpath("brand")
+_GOOGLE_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Michroma&amp;display=swap');"
+
+
+def _michroma_face() -> str:
+    font = base64.b64encode(_BRAND.joinpath("fonts", "michroma-latin.woff2").read_bytes()).decode("ascii")
+    return (
+        "@font-face{font-family:'Michroma';font-style:normal;font-weight:400;"
+        f"src:url('data:font/woff2;base64,{font}') format('woff2');}}"
+    )
+
+
+def logo_svg(height_px: int = 60, *, variant: str = "white") -> str:
+    """The official horizontal logo as inline SVG at `height_px` tall, its font embedded instead of imported.
+
+    `variant` is "dark" (dark artwork, for a light ground) or "white" (for a dark ground), the two
+    black-and-white files the brand provides.
+    """
+    svg = _BRAND.joinpath(f"parkview_lab_bw_horizontal_{variant}.svg").read_text()
+    if _GOOGLE_IMPORT not in svg:
+        raise RuntimeError("the vendored logo no longer carries the font import this code replaces")
+    svg = svg.replace(_GOOGLE_IMPORT, _michroma_face(), 1)
+    # The file composes the logo inside a 680 by 440 box with wide margins; the artwork itself spans
+    # about x 55..570 and y 100..285. Cropping the viewBox to that keeps the drawing untouched and
+    # lets it fill the header's height.
+    box = (55, 100, 515, 185)
+    width_px = round(height_px * box[2] / box[3])
+    return svg.replace(
+        'width="680" height="440" viewBox="0 0 680 440"',
+        f'width="{width_px}" height="{height_px}" viewBox="{box[0]} {box[1]} {box[2]} {box[3]}"',
+        1,
+    )
+
+
+def logo() -> None:
+    """The horizontal logo, linking to the sites page."""
+    with ui.link(target="/").classes("no-underline flex"):
+        ui.html(logo_svg(), sanitize=False).classes("flex").mark("brand-logo")
+
 
 NAV: tuple[tuple[str, str], ...] = (
     ("Sites", "/"),
@@ -34,9 +84,11 @@ NAV: tuple[tuple[str, str], ...] = (
 def frame(title: str) -> Iterator[None]:
     """The header with the navigation and the signed-in person, then a centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
-    with ui.header().classes("items-center justify-between px-4 py-2"):
-        with ui.row().classes("items-center gap-6"):
-            ui.link("paper-boxing", "/").classes("text-lg font-semibold text-white no-underline")
+    ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
+    with ui.header().classes("items-center justify-between px-6 py-1").style(f"background:{TEAL_DEEP}"):
+        with ui.row().classes("items-center gap-8"):
+            logo()
+            ui.label("paper-boxing").classes("text-white").style("opacity:.85; letter-spacing:.02em")
             for text, path in NAV:
                 ui.link(text, path).classes("text-white no-underline")
         with ui.row().classes("items-center gap-2"):

@@ -28,3 +28,5 @@ This repo is [REUSE](https://reuse.software/)-compliant: every file declares its
 ```bash
 uvx --from "reuse[charset-normalizer]" reuse lint
 ```
+
+One exception: the ParkviewLab mark vendored at `src/paper_boxing/frontend/brand/parkview_lab_mark.svg` is all rights reserved (`LicenseRef-AllRightsReserved`, text in `LICENSES/`), as every ParkviewLab logo is; it is not offered under either licence above.

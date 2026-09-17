@@ -1,0 +1,49 @@
+<svg width="680" height="440" viewBox="0 0 680 440" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Parkview Lab</title>
+<defs><style>@import url('https://fonts.googleapis.com/css2?family=Michroma&amp;display=swap');.wm{font-family:'Michroma',sans-serif;fill:#111111;}.wm-stroke{font-family:'Michroma',sans-serif;fill:none;stroke:#111111;stroke-linejoin:round;}</style></defs>
+<g transform="translate(200,200)">
+  <rect x="-88.572067" y="39.569824" width="9" height="28" fill="#bbbbbb"/>
+  <circle cx="-83" cy="10" r="30" fill="#bbbbbb"/>
+  <circle cx="-111" cy="20" r="22" fill="#bbbbbb"/>
+  <circle cx="-55" cy="18" r="21" fill="#bbbbbb"/>
+  <circle cx="-119" cy="4" r="16" fill="#bbbbbb"/>
+  <circle cx="-47" cy="6" r="15" fill="#bbbbbb"/>
+  <circle cx="-99" cy="-14" r="24" fill="#bbbbbb"/>
+  <circle cx="-71" cy="-22" r="20" fill="#bbbbbb"/>
+  <circle cx="-103" cy="-32" r="16" fill="#bbbbbb"/>
+  <circle cx="-79" cy="-38" r="15" fill="#bbbbbb"/>
+  <circle cx="-59" cy="-14" r="13" fill="#bbbbbb"/>
+  <rect x="-5.820663" y="39.498325" width="6" height="22" fill="#bbbbbb"/>
+  <circle cx="-2" cy="26" r="17" fill="#bbbbbb"/>
+  <circle cx="-19" cy="29" r="13" fill="#bbbbbb"/>
+  <circle cx="14" cy="27" r="12" fill="#bbbbbb"/>
+  <circle cx="-11" cy="12" r="13" fill="#bbbbbb"/>
+  <circle cx="7" cy="13" r="14" fill="#bbbbbb"/>
+  <circle cx="-4.2837896" cy="-2.7139649" r="11" fill="#bbbbbb"/>
+  <circle cx="6" cy="-2.14414" r="7" fill="#bbbbbb"/>
+  <g transform="matrix(0.84873049,0,0,0.84873049,-48.542203,6.0416091)">
+    <path d="m -16,-78 a 28,28 0 0 1 32,0" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="square"/>
+    <path d="m -28,-88 a 46,46 0 0 1 56,0" fill="none" stroke="#111111" stroke-width="2.5" stroke-linecap="square"/>
+    <polyline points="0,-28 0,-36 0,-62" fill="none" stroke="#111111" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+    <polyline points="24,-14 32,-22 53.7,-28" fill="none" stroke="#111111" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+    <polyline points="-24,-14 -32,-22 -53.7,-28" fill="none" stroke="#111111" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+    <polyline points="0,28 0,35 0,56" fill="none" stroke="#111111" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <polyline points="24,14 30,20 46,28" fill="none" stroke="#111111" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <polyline points="-24,14 -30,20 -46,28" fill="none" stroke="#111111" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <circle cx="0" cy="-62" r="11" fill="#111111"/><circle cx="0" cy="-62" r="5" fill="#ffffff"/>
+    <circle cx="53.7" cy="-31" r="11" fill="#111111"/><circle cx="53.7" cy="-31" r="5" fill="#ffffff"/>
+    <circle cx="-53.7" cy="-31" r="11" fill="#111111"/><circle cx="-53.7" cy="-31" r="5" fill="#ffffff"/>
+    <circle cx="0" cy="56" r="9" fill="#111111"/><circle cx="0" cy="56" r="4" fill="#ffffff"/>
+    <circle cx="46" cy="28" r="9" fill="#111111"/><circle cx="46" cy="28" r="4" fill="#ffffff"/>
+    <circle cx="-46" cy="28" r="9" fill="#111111"/><circle cx="-46" cy="28" r="4" fill="#ffffff"/>
+    <polygon points="0,-28 24,-14 24,14 0,28 -24,14 -24,-14" fill="#111111"/>
+    <polygon points="0,-23 20,-11.5 20,11.5 0,23 -20,11.5 -20,-11.5" fill="#808080"/>
+    <line x1="0" y1="-23" x2="0" y2="23" stroke="#111111" stroke-width="3" stroke-linecap="square"/>
+  </g>
+</g>
+<text x="248" y="216" class="wm-stroke" font-size="36" letter-spacing="2" stroke-width="1.2">PARKVIEW</text>
+<text x="248" y="216" class="wm" font-size="36" letter-spacing="2">PARKVIEW</text>
+<polygon points="248,228 514,228 511,231 248,231" fill="#111111"/>
+<text x="248" y="256" class="wm-stroke" font-size="20" letter-spacing="6" stroke-width="1.2">LAB</text>
+<text x="248" y="256" class="wm" font-size="20" letter-spacing="6">LAB</text>
+</svg>
