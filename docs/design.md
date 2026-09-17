@@ -77,7 +77,7 @@ paper-boxing-develop/
 - Component boundaries are enforced by a test, `tests/test_import_boundaries.py`, which walks the source with `ast` and needs no extra dependency: `common` imports none of the three components; `backend`, `frontend` and `mcp` may import `common` but never each other.
 - One version: every release builds all three images from the same commit with the same tags, so the frontend and MCP server always match the backend's API, and a deployment names one version for the whole stack.
 - Dependencies: the shared ones are core. Each image installs only its own extra:
-  - `backend`: fastapi, uvicorn, `starlette>=1.3.1`, python-multipart, argon2-cffi;
+  - `backend`: fastapi, uvicorn, `starlette>=1.3.1`, argon2-cffi;
   - `frontend`: nicegui, httpx;
   - `mcp`: `mcp>=1.29,<2`, fastapi, uvicorn, `starlette>=1.3.1`, httpx.
 - Entry points: `python -m paper_boxing.backend`, `python -m paper_boxing.frontend` and `python -m paper_boxing.mcp`, each also installed as a console script.
