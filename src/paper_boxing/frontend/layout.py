@@ -25,7 +25,7 @@ from paper_boxing.common.client import BackendError, BackendUnreachable
 from paper_boxing.frontend import auth, backend
 
 # ParkviewLab brand (the handbook's docs/brand.md): the header carries the official horizontal logo
-# from the brand's own files, dark artwork on the brand's light paper ground. The file @imports its
+# from the brand's own files, the white artwork on the brand's deep teal. The file @imports its
 # wordmark font from Google Fonts; that line is replaced at render time with the same face embedded
 # from the vendored woff2 as data, so nothing is fetched. The artwork itself is untouched.
 TEAL_DEEP = "#004f52"
@@ -44,7 +44,7 @@ def _michroma_face() -> str:
     )
 
 
-def logo_svg(height_px: int = 60, *, variant: str = "dark") -> str:
+def logo_svg(height_px: int = 60, *, variant: str = "white") -> str:
     """The official horizontal logo as inline SVG at `height_px` tall, its font embedded instead of imported.
 
     `variant` is "dark" (dark artwork, for a light ground) or "white" (for a dark ground), the two
@@ -85,20 +85,16 @@ def frame(title: str) -> Iterator[None]:
     """The header with the navigation and the signed-in person, then a centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
     ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
-    with (
-        ui.header()
-        .classes("items-center justify-between px-6 py-1")
-        .style(f"background:{PAPER}; color:{TEAL_DEEP}; border-bottom:2px solid {TEAL}")
-    ):
+    with ui.header().classes("items-center justify-between px-6 py-1").style(f"background:{TEAL_DEEP}"):
         with ui.row().classes("items-center gap-8"):
             logo()
-            ui.label("paper-boxing").style(f"color:{TEAL_DEEP}; opacity:.8; letter-spacing:.02em")
+            ui.label("paper-boxing").classes("text-white").style("opacity:.85; letter-spacing:.02em")
             for text, path in NAV:
-                ui.link(text, path).classes("no-underline").style(f"color:{TEAL_DEEP}")
+                ui.link(text, path).classes("text-white no-underline")
         with ui.row().classes("items-center gap-2"):
-            ui.icon("person").style(f"color:{TEAL_DEEP}")
-            ui.label(auth.username()).style(f"color:{TEAL_DEEP}").mark("current-user")
-            ui.button("Sign out", icon="logout", on_click=sign_out).props("flat dense no-caps color=primary")
+            ui.icon("person").classes("text-white")
+            ui.label(auth.username()).classes("text-white").mark("current-user")
+            ui.button("Sign out", icon="logout", on_click=sign_out).props("flat dense no-caps color=white")
     with ui.column().classes("w-full max-w-5xl mx-auto p-6 gap-4"):
         ui.label(title).classes("text-2xl font-medium")
         yield
