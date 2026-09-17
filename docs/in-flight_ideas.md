@@ -30,6 +30,10 @@ The handbook's `docs-site.md` (a GitHub Pages site built from `main`) is not par
 
 The handbook's on-demand dev build, publishing `:dev` images only (design section 3). Not adopted in the scaffold; adopt if a candidate needs exercising on the host before a release.
 
+### Auth helpers duplicated between the MCP server and `common/`
+
+The MCP server parses `Authorization: Bearer` (`mcp/auth.py`, `bearer_from`) and joins a pydantic validation error into one message (`mcp/tools.py`, `_validation_message`) with code of its own, duplicating what the fake backend and `common/errors.py` do. Deferred by the review of the MCP pull request on 2026-09-17 rather than touching `common/` while the three components are built in parallel: once the backend, frontend and MCP pull requests have merged, move both into `common/` in one refactor, so that the three components parse a bearer and describe a validation failure identically.
+
 ### An HTML twin of the northstar
 
 Decided in the design (decision 8): no HTML twin until paper-boxing is up and running. Then author one from `northstar.md` per the handbook's `md-to-html.md`.
