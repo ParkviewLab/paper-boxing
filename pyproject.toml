@@ -44,8 +44,8 @@ paper-boxing-mcp = "paper_boxing.mcp.__main__:main"
 
 [dependency-groups]
 # The dev group pulls in all three extras so a plain `uv sync` gives a
-# worktree everything the tests import (the fake backend needs FastAPI and
-# python-multipart, the MCP tests need the SDK, the frontend tests NiceGUI).
+# worktree everything the tests import (the fake backend needs FastAPI, the
+# MCP tests need the SDK, the frontend tests NiceGUI).
 dev = [
     "paper-boxing[backend,frontend,mcp]",
     "pytest",
