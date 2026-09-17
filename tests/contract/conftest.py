@@ -6,24 +6,51 @@
 
 `api` is a fresh backend per test with one bootstrap account, and `actors`
 holds a bearer token of every kind: a session, an agent token per scope, and
-a revoked one. The suite runs against the fake backend here; the backend
-worker adds the real app as a second `api` parameter (a `TestClient` over
-`paper_boxing.backend.app` with a temporary data directory and the admin
-bootstrap variables set) and the same tests then prove the two identical.
+a revoked one. The suite is parametrised over the two implementations of
+the contract: `fake`, the in-memory backend in `common/`, and `real`, the
+backend proper (`paper_boxing.backend.app.create_app` over a temporary data
+directory, with the admin bootstrap set and a cheap argon2 profile so that
+every test's sign-ins stay fast). The same tests passing against both is
+what proves the two identical.
+
+`clock` moves time forward on either implementation; `fake` exposes the
+fake's state (its request record) and skips on the real backend.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 
+import argon2
 import pytest
 from fastapi.testclient import TestClient
 
+from paper_boxing.backend.app import create_app
+from paper_boxing.backend.clock import Clock
+from paper_boxing.backend.config import BackendConfig
 from paper_boxing.common.fake_backend import FakeState, create_fake_backend
 from paper_boxing.common.scopes import Scope
 
 ADMIN = ("admin", "admin-password")
+
+# argon2id at the cheapest settings the library accepts: the contract is about behaviour, not cost.
+FAST_HASHER = argon2.PasswordHasher(time_cost=1, memory_cost=8 * 1024, parallelism=1)
+
+
+def real_config(data_dir: Path, *, max_upload_mb: int = 1, session_days: int = 14) -> BackendConfig:
+    """A backend configuration over `data_dir` with the contract suite's bootstrap account."""
+    return BackendConfig(
+        host="127.0.0.1",
+        port=0,
+        data_dir=data_dir,
+        public_sites_url="http://127.0.0.1:35841",
+        admin_username=ADMIN[0],
+        admin_password=ADMIN[1],
+        max_upload_mb=max_upload_mb,
+        session_days=session_days,
+    )
 
 
 @dataclass(frozen=True)
@@ -46,18 +73,31 @@ class Actors:
         }[scope]
 
 
-@pytest.fixture(params=["fake"])
-def api(request: pytest.FixtureRequest) -> Iterator[TestClient]:
+@pytest.fixture(params=["fake", "real"])
+def api(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[TestClient]:
     """A fresh backend per test. The bootstrap account is `ADMIN`."""
-    app = create_fake_backend(admin=ADMIN, max_upload_mb=1, session_days=14)
+    if request.param == "fake":
+        app = create_fake_backend(admin=ADMIN, max_upload_mb=1, session_days=14)
+    else:
+        app = create_app(real_config(tmp_path / "data"), clock=Clock(), password_hasher=FAST_HASHER)
     with TestClient(app, base_url="http://localhost") as client:
         yield client
 
 
 @pytest.fixture
+def clock(api: TestClient) -> Clock:
+    """The backend's clock, whichever implementation is under test; `advance(seconds)` moves it."""
+    state = api.app.state  # type: ignore[attr-defined]
+    return state.fake.clock if hasattr(state, "fake") else state.clock
+
+
+@pytest.fixture
 def fake(api: TestClient) -> FakeState:
-    """The fake's state, for tests that need the clock or the request record (fake only)."""
-    return api.app.state.fake  # type: ignore[attr-defined]
+    """The fake's state, for tests that need its request record (fake only)."""
+    state = api.app.state  # type: ignore[attr-defined]
+    if not hasattr(state, "fake"):
+        pytest.skip("the request record is the fake backend's own; the real one logs instead")
+    return state.fake
 
 
 @pytest.fixture
