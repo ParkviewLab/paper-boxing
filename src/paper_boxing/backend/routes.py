@@ -23,6 +23,7 @@ from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Request, Response
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse, JSONResponse
 
 from paper_boxing.backend.accounts import Actor, public_token, public_user
@@ -189,7 +190,8 @@ def register_routes(app: FastAPI) -> None:
     @app.get(route("list_sites").path, response_model=SiteList, tags=["sites"])
     async def list_sites(request: Request, _: Annotated[Actor, Depends(requires("list_sites"))]) -> SiteList:
         backend = _backend(request)
-        return SiteList(sites=[_public_site(backend, s) for s in backend.db.list_sites()])
+        sites = await run_in_threadpool(lambda: [_public_site(backend, s) for s in backend.db.list_sites()])
+        return SiteList(sites=sites)
 
     @app.post(route("create_site").path, response_model=Site, status_code=201, tags=["sites"])
     async def create_site(
@@ -209,7 +211,7 @@ def register_routes(app: FastAPI) -> None:
         slug: str, request: Request, _: Annotated[Actor, Depends(requires("get_site"))]
     ) -> Site:
         backend = _backend(request)
-        return _public_site(backend, _site(backend, slug))
+        return await run_in_threadpool(_public_site, backend, _site(backend, slug))
 
     @app.delete(route("delete_site").path, status_code=204, tags=["sites"])
     async def delete_site(
@@ -238,7 +240,7 @@ def register_routes(app: FastAPI) -> None:
         backend = _backend(request)
         site = _site(backend, slug)
         folder = _valid_path(path, allow_root=True)
-        return backend.storage.list_folder(site.slug, folder)
+        return await run_in_threadpool(backend.storage.list_folder, site.slug, folder)
 
     @app.put(
         route("upload_file").path,

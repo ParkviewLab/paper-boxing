@@ -46,7 +46,7 @@ from enum import Enum
 from pathlib import Path
 from typing import BinaryIO
 
-from paper_boxing.backend.db import Conflict, Database, SiteRow
+from paper_boxing.backend.db import Conflict, Database, FileRow, SiteRow
 from paper_boxing.common.errors import ApiError
 from paper_boxing.common.schema import EntryType, ErrorCode, FileEntry, FileListing, UploadResult
 
@@ -98,8 +98,8 @@ def _invalid_path(path: str, why: str) -> ApiError:
     return ApiError(400, ErrorCode.INVALID_PATH, f"invalid path {path!r}: {why}")
 
 
-def _mtime(timestamp: float) -> datetime:
-    return datetime.fromtimestamp(timestamp, UTC)
+def _mtime(mtime_ns: int) -> datetime:
+    return datetime.fromtimestamp(mtime_ns / 1_000_000_000, UTC)
 
 
 @dataclass
@@ -134,37 +134,6 @@ class SiteLocks:
 
     def __len__(self) -> int:
         return len(self._entries)
-
-
-@dataclass(frozen=True)
-class TreeStats:
-    file_count: int
-    bytes: int
-    newest_mtime: float
-
-
-def tree_stats(directory: Path) -> TreeStats:
-    """Counts over the regular files below `directory`, folders included in the newest time;
-    symlinks and special files are skipped, and nothing is followed."""
-    newest = os.lstat(directory).st_mtime
-    count = total = 0
-    stack = [directory]
-    while stack:
-        current = stack.pop()
-        with os.scandir(current) as entries:
-            for entry in entries:
-                try:
-                    st = entry.stat(follow_symlinks=False)
-                except OSError:
-                    continue
-                if stat.S_ISDIR(st.st_mode):
-                    newest = max(newest, st.st_mtime)
-                    stack.append(Path(entry.path))
-                elif stat.S_ISREG(st.st_mode):
-                    count += 1
-                    total += st.st_size
-                    newest = max(newest, st.st_mtime)
-    return TreeStats(file_count=count, bytes=total, newest_mtime=newest)
 
 
 @dataclass(frozen=True)
@@ -277,16 +246,13 @@ class Storage:
         return site
 
     def site_totals(self, slug: str) -> tuple[int, int]:
-        """(file count, bytes) of a site; (0, 0) when its folder is missing on disk."""
-        root = self.site_dir(slug)
-        if kind_of(root) is not Kind.FOLDER:
-            return 0, 0
-        stats = tree_stats(root)
-        return stats.file_count, stats.bytes
+        """(file count, bytes) of a site, from the index."""
+        totals = self._db.folder_totals(slug, "")
+        return totals.file_count, totals.bytes
 
     async def delete_site(self, slug: str) -> None:
         """Under the site's lock, move its folder into staging in one rename (so nginx stops serving it
-        at once) and delete its row; then remove the parked folder."""
+        at once) and delete its row, which takes its file index with it; then remove the parked folder."""
         parked: Path | None = None
         async with self.locks.hold(slug):
             root = self.site_dir(slug)
@@ -304,6 +270,13 @@ class Storage:
     # ---- listing ----
 
     def list_folder(self, slug: str, folder: str) -> FileListing:
+        """List one folder from the disk and the index together.
+
+        Each file is stat'ed; when its size and mtime match its row the row's digest is reported,
+        otherwise (changed, or placed by other means) the file is hashed and its row written. A
+        row whose file is gone is dropped. A folder's total and newest time come from the rows
+        below it and its own mtime, without a walk. Blocking work: the route runs it in a thread.
+        """
         target = self.resolve(slug, folder)
         kind = kind_of(target)
         if kind is Kind.FILE:
@@ -314,32 +287,49 @@ class Storage:
             if folder == "":
                 return FileListing(site=slug, path="", entries=[])  # a site whose folder is not on disk
             raise ApiError(404, ErrorCode.NOT_FOUND, f"no folder {folder!r} in site {slug!r}")
+        indexed = {row.path: row for row in self._db.files_in_folder(slug, folder)}
+        seen: set[str] = set()
         folders: list[FileEntry] = []
         files: list[FileEntry] = []
         for name, path, st in self._scan(target):
+            rel = f"{folder}/{name}" if folder else name
             if stat.S_ISDIR(st.st_mode):
-                stats = tree_stats(path)
+                totals = self._db.folder_totals(slug, rel)
+                newest = max(st.st_mtime_ns, totals.newest_mtime_ns or 0)
                 folders.append(
                     FileEntry(
                         name=name,
                         type=EntryType.FOLDER,
-                        bytes=stats.bytes,
-                        modified_at=_mtime(stats.newest_mtime),
+                        bytes=totals.bytes,
+                        modified_at=_mtime(newest),
                         sha256=None,
                     )
                 )
             elif stat.S_ISREG(st.st_mode):
+                seen.add(rel)
+                row = indexed.get(rel)
+                if row is None or row.bytes != st.st_size or row.mtime_ns != st.st_mtime_ns:
+                    row = FileRow(
+                        site=slug,
+                        path=rel,
+                        bytes=st.st_size,
+                        mtime_ns=st.st_mtime_ns,
+                        sha256=sha256_file(path),
+                    )
+                    self._db.upsert_file(row)
                 files.append(
                     FileEntry(
                         name=name,
                         type=EntryType.FILE,
-                        bytes=st.st_size,
-                        modified_at=_mtime(st.st_mtime),
-                        sha256=sha256_file(path),
+                        bytes=row.bytes,
+                        modified_at=_mtime(row.mtime_ns),
+                        sha256=row.sha256,
                     )
                 )
             else:
                 logger.warning("listing site=%s: skipping %r, not a regular file or a folder", slug, name)
+        for stale in indexed.keys() - seen:
+            self._db.delete_file_row(slug, stale)
         folders.sort(key=lambda e: e.name)
         files.sort(key=lambda e: e.name)
         return FileListing(site=slug, path=folder, entries=folders + files)
@@ -401,6 +391,15 @@ class Storage:
                 replaced = self._check_write_target(slug, target, path, overwrite=overwrite)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(staged.path, target)
+                self._db.upsert_file(
+                    FileRow(
+                        site=slug,
+                        path=path,
+                        bytes=staged.bytes,
+                        mtime_ns=os.lstat(target).st_mtime_ns,
+                        sha256=staged.sha256,
+                    )
+                )
         except BaseException:
             _unlink(staged.path)
             raise
@@ -473,6 +472,7 @@ class Storage:
             if kind is Kind.MISSING:
                 raise ApiError(404, ErrorCode.NOT_FOUND, f"no file {path!r} in site {slug!r}")
             target.unlink()
+            self._db.delete_file_row(slug, path)
 
     async def delete_folder(self, slug: str, path: str, *, recursive: bool) -> None:
         async with self.locks.hold(slug):
@@ -493,3 +493,4 @@ class Storage:
                     f"{path!r} is not empty; pass recursive=true to delete everything in it",
                 )
             await asyncio.to_thread(shutil.rmtree, target)
+            self._db.delete_files_under(slug, path)

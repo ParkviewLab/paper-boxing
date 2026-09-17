@@ -382,6 +382,101 @@ def test_startup_removes_leftovers_in_staging(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# The file index behind listings and totals
+
+
+def _rows(data_dir: Path, slug: str) -> list[tuple[str, int, str]]:
+    conn = sqlite3.connect(data_dir / "data" / "paper-boxing.sqlite3")
+    try:
+        return conn.execute(
+            "SELECT path, bytes, sha256 FROM files WHERE site = ? ORDER BY path", (slug,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def test_listing_reads_the_index_and_hashes_only_what_changed(
+    client: TestClient, s: dict[str, str], data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    slug = create_site(client, s["Authorization"].split()[1], "Indexed")
+    assert (
+        client.put(f"/api/v1/sites/{slug}/files/docs/a.txt", content=b"alpha", headers=s).status_code == 201
+    )
+    assert client.put(f"/api/v1/sites/{slug}/files/docs/b.txt", content=b"beta", headers=s).status_code == 201
+    docs = _sites(data_dir) / slug / "docs"
+    hashed: list[str] = []
+    real_sha256_file = storage_module.sha256_file
+    monkeypatch.setattr(
+        storage_module, "sha256_file", lambda path: (hashed.append(path.name), real_sha256_file(path))[1]
+    )
+
+    def listing() -> dict[str, dict[str, Any]]:
+        resp = client.get(f"/api/v1/sites/{slug}/files", params={"path": "docs"}, headers=s)
+        assert resp.status_code == 200, resp.text
+        return {e["name"]: e for e in resp.json()["entries"]}
+
+    # unchanged files: the digests come from the index, nothing is read
+    entries = listing()
+    assert entries["a.txt"]["sha256"] == hashlib.sha256(b"alpha").hexdigest()
+    assert hashed == []
+
+    # a file changed by other means: its size and mtime no longer match its row, so it is re-hashed once
+    (docs / "a.txt").write_bytes(b"ALPHA!")
+    st = os.stat(docs / "a.txt")
+    os.utime(docs / "a.txt", ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
+    entries = listing()
+    assert entries["a.txt"]["sha256"] == hashlib.sha256(b"ALPHA!").hexdigest()
+    assert entries["a.txt"]["bytes"] == 6
+    assert hashed == ["a.txt"]
+    listing()
+    assert hashed == ["a.txt"]
+
+    # a file placed by other means: listed, hashed once, indexed from then on
+    (docs / "c.txt").write_bytes(b"gamma")
+    entries = listing()
+    assert sorted(entries) == ["a.txt", "b.txt", "c.txt"]
+    assert entries["c.txt"]["sha256"] == hashlib.sha256(b"gamma").hexdigest()
+    assert hashed == ["a.txt", "c.txt"]
+    listing()
+    assert hashed == ["a.txt", "c.txt"]
+
+    # a file removed by other means: gone from the listing, its row dropped, the totals follow
+    (docs / "b.txt").unlink()
+    assert sorted(listing()) == ["a.txt", "c.txt"]
+    assert [(path, size) for path, size, _ in _rows(data_dir, slug)] == [("docs/a.txt", 6), ("docs/c.txt", 5)]
+    site = client.get(f"/api/v1/sites/{slug}", headers=s).json()
+    assert (site["file_count"], site["bytes"]) == (2, 11)
+
+
+def test_totals_and_folder_entries_come_from_the_index(
+    client: TestClient, s: dict[str, str], data_dir: Path
+) -> None:
+    slug = create_site(client, s["Authorization"].split()[1], "Totals")
+    for path, content in (("a.txt", b"abc"), ("d/b.txt", b"de"), ("d/e/c.txt", b"fghi")):
+        assert client.put(f"/api/v1/sites/{slug}/files/{path}", content=content, headers=s).status_code == 201
+    site = client.get(f"/api/v1/sites/{slug}", headers=s).json()
+    assert (site["file_count"], site["bytes"]) == (3, 9)
+    root = {e["name"]: e for e in client.get(f"/api/v1/sites/{slug}/files", headers=s).json()["entries"]}
+    assert root["d"]["type"] == "folder" and root["d"]["bytes"] == 6
+    assert [path for path, _, _ in _rows(data_dir, slug)] == ["a.txt", "d/b.txt", "d/e/c.txt"]
+
+    assert client.delete(f"/api/v1/sites/{slug}/files/a.txt", headers=s).status_code == 204
+    site = client.get(f"/api/v1/sites/{slug}", headers=s).json()
+    assert (site["file_count"], site["bytes"]) == (2, 6)
+    assert (
+        client.delete(f"/api/v1/sites/{slug}/folders/d", params={"recursive": "true"}, headers=s).status_code
+        == 204
+    )
+    site = client.get(f"/api/v1/sites/{slug}", headers=s).json()
+    assert (site["file_count"], site["bytes"]) == (0, 0)
+    assert _rows(data_dir, slug) == []
+
+    assert client.put(f"/api/v1/sites/{slug}/files/x.txt", content=b"x", headers=s).status_code == 201
+    assert client.delete(f"/api/v1/sites/{slug}", params={"confirm": slug}, headers=s).status_code == 204
+    assert _rows(data_dir, slug) == []  # the site's rows went with its row
+
+
+# ---------------------------------------------------------------------------
 # The intent guards: 409 and 400
 
 

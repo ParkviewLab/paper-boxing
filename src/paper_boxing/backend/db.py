@@ -14,7 +14,11 @@ rows never hold anything else.
 Sessions and agent tokens share one table, told apart by `type`; a revoked
 token keeps its row with `revoked_at` set (so a second revocation is a 404
 rather than a silent success), and a removed user's tokens go with the user
-through the foreign key. Timestamps are ISO 8601 UTC strings.
+through the foreign key. The `files` table is an index of the served tree
+(size, mtime_ns and sha256 per file) kept by every write and deletion and
+reconciled by listings, so a listing hashes a file only when it changed or
+was placed by other means; a site's rows go with the site. Timestamps are
+ISO 8601 UTC strings.
 """
 
 from __future__ import annotations
@@ -59,6 +63,14 @@ CREATE TABLE IF NOT EXISTS sites (
     name       TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS files (
+    site     TEXT NOT NULL REFERENCES sites(slug) ON DELETE CASCADE,
+    path     TEXT NOT NULL,
+    bytes    INTEGER NOT NULL,
+    mtime_ns INTEGER NOT NULL,
+    sha256   TEXT NOT NULL,
+    PRIMARY KEY (site, path)
+);
 """
 
 
@@ -92,6 +104,24 @@ class SiteRow:
     slug: str
     name: str
     created_at: datetime
+
+
+@dataclass(frozen=True)
+class FileRow:
+    """One indexed file: what a listing reports without reading the file, while size and mtime match."""
+
+    site: str
+    path: str
+    bytes: int
+    mtime_ns: int
+    sha256: str
+
+
+@dataclass(frozen=True)
+class Totals:
+    file_count: int
+    bytes: int
+    newest_mtime_ns: int | None
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -130,6 +160,20 @@ def _site(row: sqlite3.Row) -> SiteRow:
     created = _dt(row["created_at"])
     assert created is not None
     return SiteRow(slug=row["slug"], name=row["name"], created_at=created)
+
+
+def _file(row: sqlite3.Row) -> FileRow:
+    return FileRow(
+        site=row["site"], path=row["path"], bytes=row["bytes"], mtime_ns=row["mtime_ns"], sha256=row["sha256"]
+    )
+
+
+def _below(folder: str) -> tuple[str, tuple[object, ...]]:
+    """A WHERE fragment (and its parameters) selecting the rows below `folder`, "" meaning the whole site."""
+    if not folder:
+        return "", ()
+    prefix = folder + "/"
+    return " AND substr(path, 1, ?) = ?", (len(prefix), prefix)
 
 
 class Database:
@@ -317,6 +361,49 @@ class Database:
         return [_site(r) for r in rows]
 
     def delete_site(self, slug: str) -> bool:
+        """Remove the site row and, through the foreign key, its file index."""
         with self.transaction() as conn:
             cursor = conn.execute("DELETE FROM sites WHERE slug = ?", (slug,))
             return cursor.rowcount > 0
+
+    # ---- the file index ----
+
+    def upsert_file(self, row: FileRow) -> None:
+        with self.transaction() as conn:
+            conn.execute(
+                "INSERT INTO files (site, path, bytes, mtime_ns, sha256) VALUES (?, ?, ?, ?, ?)"
+                " ON CONFLICT(site, path) DO UPDATE SET"
+                " bytes = excluded.bytes, mtime_ns = excluded.mtime_ns, sha256 = excluded.sha256",
+                (row.site, row.path, row.bytes, row.mtime_ns, row.sha256),
+            )
+
+    def delete_file_row(self, site: str, path: str) -> None:
+        with self.transaction() as conn:
+            conn.execute("DELETE FROM files WHERE site = ? AND path = ?", (site, path))
+
+    def delete_files_under(self, site: str, folder: str) -> int:
+        clause, params = _below(folder)
+        with self.transaction() as conn:
+            cursor = conn.execute(f"DELETE FROM files WHERE site = ?{clause}", (site, *params))
+            return cursor.rowcount
+
+    def files_in_folder(self, site: str, folder: str) -> list[FileRow]:
+        """The indexed files directly inside `folder` ("" for the root)."""
+        clause, params = _below(folder)
+        start = len(folder) + 2 if folder else 1  # 1-based: the character after "folder/"
+        with self.transaction() as conn:
+            rows = conn.execute(
+                f"SELECT * FROM files WHERE site = ?{clause} AND instr(substr(path, ?), '/') = 0 ORDER BY path",
+                (site, *params, start),
+            ).fetchall()
+        return [_file(r) for r in rows]
+
+    def folder_totals(self, site: str, folder: str) -> Totals:
+        """Count, bytes and newest mtime over every indexed file below `folder` ("" for the whole site)."""
+        clause, params = _below(folder)
+        with self.transaction() as conn:
+            count, total, newest = conn.execute(
+                f"SELECT COUNT(*), COALESCE(SUM(bytes), 0), MAX(mtime_ns) FROM files WHERE site = ?{clause}",
+                (site, *params),
+            ).fetchone()
+        return Totals(file_count=count, bytes=total, newest_mtime_ns=newest)
