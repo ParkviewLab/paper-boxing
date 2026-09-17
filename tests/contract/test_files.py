@@ -99,6 +99,22 @@ def test_size_cap_is_413(api: TestClient, actors: Actors) -> None:
     assert api.get(f"/api/v1/sites/{slug}/files", headers=s).json()["entries"] == []
 
 
+def test_size_cap_precedes_conflicts_on_a_chunked_body(api: TestClient, actors: Actors) -> None:
+    """A body sent without Content-Length onto an existing file, without overwrite: the cap answers
+    before the conflict does, on both implementations, and the existing file is untouched."""
+    s = bearer(actors.session)
+    slug = _site(api, s)
+    assert api.put(f"/api/v1/sites/{slug}/files/big.bin", content=b"small", headers=s).status_code == 201
+    resp = api.put(
+        f"/api/v1/sites/{slug}/files/big.bin",
+        content=iter([b"x" * 600_000, b"y" * 600_000]),
+        headers=s,
+    )
+    assert resp.status_code == 413
+    assert _code(resp) is ErrorCode.PAYLOAD_TOO_LARGE
+    assert api.get(f"/api/v1/sites/{slug}/files/big.bin", headers=s).content == b"small"
+
+
 def test_invalid_paths_are_400(api: TestClient, actors: Actors) -> None:
     s = bearer(actors.session)
     slug = _site(api, s)

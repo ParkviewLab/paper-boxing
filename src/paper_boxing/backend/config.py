@@ -43,6 +43,13 @@ class BackendConfig:
     max_upload_mb: int
     session_days: int
 
+    def __post_init__(self) -> None:
+        """Refuse a configuration the service could not run under, at start, as the admin pair is."""
+        if self.max_upload_mb < 1:
+            raise ValueError(f"PAPER_BOXING_MAX_UPLOAD_MB must be at least 1, got {self.max_upload_mb}")
+        if self.session_days < 1:
+            raise ValueError(f"PAPER_BOXING_SESSION_DAYS must be at least 1, got {self.session_days}")
+
     @property
     def sites_dir(self) -> Path:
         return self.data_dir / "sites"

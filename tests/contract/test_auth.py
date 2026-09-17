@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from paper_boxing.common.fake_backend import FakeState
+from paper_boxing.backend.clock import Clock
 from paper_boxing.common.schema import ErrorBody, ErrorCode, LoginResponse, TokenSelf
 from tests.contract.conftest import ADMIN, Actors, bearer
 
@@ -67,20 +67,20 @@ def test_agent_token_cannot_log_out(api: TestClient, actors: Actors) -> None:
     assert _error(resp) is ErrorCode.SESSION_REQUIRED
 
 
-def test_session_expiry_is_sliding(api: TestClient, actors: Actors, fake: FakeState) -> None:
+def test_session_expiry_is_sliding(api: TestClient, actors: Actors, clock: Clock) -> None:
     day = 24 * 3600
-    fake.clock.advance(10 * day)
+    clock.advance(10 * day)
     assert api.get("/api/v1/tokens/self", headers=bearer(actors.session)).status_code == 200  # extends it
-    fake.clock.advance(10 * day)
+    clock.advance(10 * day)
     assert api.get("/api/v1/tokens/self", headers=bearer(actors.session)).status_code == 200
-    fake.clock.advance(15 * day)
+    clock.advance(15 * day)
     resp = api.get("/api/v1/tokens/self", headers=bearer(actors.session))
     assert resp.status_code == 401
     assert _error(resp) is ErrorCode.UNAUTHORIZED
 
 
-def test_agent_tokens_do_not_expire(api: TestClient, actors: Actors, fake: FakeState) -> None:
-    fake.clock.advance(400 * 24 * 3600)
+def test_agent_tokens_do_not_expire(api: TestClient, actors: Actors, clock: Clock) -> None:
+    clock.advance(400 * 24 * 3600)
     me = TokenSelf.model_validate(api.get("/api/v1/tokens/self", headers=bearer(actors.read_only)).json())
     assert me.type == "agent"
     assert me.scope == "read_only"

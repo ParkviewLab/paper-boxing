@@ -30,6 +30,18 @@ The handbook's `docs-site.md` (a GitHub Pages site built from `main`) is not par
 
 The handbook's on-demand dev build, publishing `:dev` images only (design section 3). Not adopted in the scaffold; adopt if a candidate needs exercising on the host before a release.
 
+### Rules duplicated between the fake backend and the real one
+
+The bearer parsing, the `Content-Disposition` builder, the authorization ladder, the `Clock`, the path-to-`ApiError` wrapper, and the scope `CHECK` constraints that restate the enum exist twice: in `common/fake_backend.py` and in `backend/`. Deferred by the review of the backend pull request: they move into `common/` in one refactor after all three components have merged, so that no worker's branch is disturbed in flight.
+
+### Backend work that stays on the event loop
+
+argon2 verification at sign-in and the three per-request transactions (the token lookup, the touch, the route's own) run on the event loop. Deferred by the same review: at one operator's load they are not a cost; measure before moving them to the threadpool.
+
+### Two small costs left in the backend
+
+The double parent walk in `_check_write_target` (the containment check walks the components once, the file-or-folder check walks them again) and the scope test's per-route setup cost. Deferred by the same review: neither is worth a change of its own.
+
 ### An HTML twin of the northstar
 
 Decided in the design (decision 8): no HTML twin until paper-boxing is up and running. Then author one from `northstar.md` per the handbook's `md-to-html.md`.

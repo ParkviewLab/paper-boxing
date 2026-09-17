@@ -88,8 +88,8 @@ Backend:
 | `PORT` | `35843` | listen port |
 | `PAPER_BOXING_DATA_DIR` | `./data` (image: `/data`) | the volume: `sites/`, `staging/`, `paper-boxing.sqlite3` |
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | the site server's address as people and links reach it; every site's URL is built from it |
-| `PAPER_BOXING_ADMIN_USERNAME` | unset | the first account, created only when no account exists |
-| `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password; ignored once an account exists |
+| `PAPER_BOXING_ADMIN_USERNAME` | unset | the first account, created only when no account exists; the same rules as any account (`[A-Za-z0-9][A-Za-z0-9._-]*`, at most 64 characters) |
+| `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password, at least 8 characters; ignored once an account exists. While no account exists, an invalid pair stops the backend from starting |
 | `PAPER_BOXING_MAX_UPLOAD_MB` | `200` | size cap of one uploaded file |
 | `PAPER_BOXING_SESSION_DAYS` | `14` | sliding expiry of a UI session |
 
