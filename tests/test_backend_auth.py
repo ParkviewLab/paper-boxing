@@ -402,6 +402,12 @@ def test_framework_errors_use_the_contract_error_body(
 
         monkeypatch.setattr(Storage, "list_folder", explode)
         cases.append((client.get(f"/api/v1/sites/{slug}/files", headers=s), 500, ErrorCode.INTERNAL_ERROR))
+
+        def vanish(self: Storage, slug: str, folder: str) -> None:
+            raise FileNotFoundError(2, "No such file or directory", "/data/sites/gone")
+
+        monkeypatch.setattr(Storage, "list_folder", vanish)  # an OSError that is not a full disk stays 500
+        cases.append((client.get(f"/api/v1/sites/{slug}/files", headers=s), 500, ErrorCode.INTERNAL_ERROR))
         for resp, status, code in cases:
             assert resp.status_code == status, resp.text
             body = ErrorBody.model_validate(resp.json())

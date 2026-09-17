@@ -18,12 +18,14 @@ advance and a cheaper password hasher.
 from __future__ import annotations
 
 import contextlib
+import errno
 import logging
 import time
 from collections.abc import AsyncIterator
 
 import argon2
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from starlette.responses import JSONResponse
 
 from paper_boxing.backend.accounts import Accounts
 from paper_boxing.backend.clock import Clock
@@ -32,12 +34,15 @@ from paper_boxing.backend.context import Backend
 from paper_boxing.backend.db import Database
 from paper_boxing.backend.routes import register_routes
 from paper_boxing.backend.storage import Storage
-from paper_boxing.common.errors import install_error_handlers
-from paper_boxing.common.schema import Health
+from paper_boxing.common.errors import error_response, install_error_handlers
+from paper_boxing.common.schema import ErrorCode, Health
 
 logger = logging.getLogger(__name__)
 
 cfg: BackendConfig = load_config()
+
+# The errno values that mean the data volume is full or over quota; any route may meet them.
+STORAGE_FULL = frozenset({errno.ENOSPC, errno.EDQUOT})
 
 
 def ensure_data_layout(config: BackendConfig) -> None:
@@ -59,10 +64,12 @@ def create_app(
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ensure_data_layout(config)
-        storage = Storage(config.sites_dir, config.staging_dir, max_upload_bytes=config.max_upload_bytes)
-        storage.clean_staging()
         db = Database.open(config.database_path)
         try:
+            storage = Storage(
+                config.sites_dir, config.staging_dir, max_upload_bytes=config.max_upload_bytes, db=db
+            )
+            storage.clean_staging()
             accounts = Accounts(db, app_clock, session_days=config.session_days, hasher=password_hasher)
             accounts.bootstrap(config.admin_username, config.admin_password)
             purged = accounts.purge_dead_sessions()
@@ -95,6 +102,18 @@ def create_app(
     )
     app.state.clock = app_clock
     install_error_handlers(app)
+
+    @app.exception_handler(OSError)
+    async def _storage_full(request: Request, exc: OSError) -> JSONResponse:
+        """A full volume is 507 wherever it is met; every other OSError stays an internal error."""
+        if exc.errno in STORAGE_FULL:
+            logger.warning("storage full on %s %s: %s", request.method, request.url.path, exc)
+            return error_response(
+                507,
+                ErrorCode.INSUFFICIENT_STORAGE,
+                "the disk is full or the quota is reached; nothing was written",
+            )
+        raise exc
 
     @app.get("/health", response_model=Health, tags=["health"])
     async def health() -> Health:

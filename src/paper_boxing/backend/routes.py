@@ -154,10 +154,6 @@ def _declared_length(request: Request) -> int | None:
         return None
 
 
-def _holder(actor: Actor) -> str:
-    return f"{actor.user.username}/{actor.token.id}"
-
-
 def _attachment(name: str) -> str:
     ascii_name = name.encode("ascii", "replace").decode("ascii").replace('"', "'")
     return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
@@ -204,12 +200,7 @@ def register_routes(app: FastAPI) -> None:
             slug = slug_from_name(body.name)
         except ValueError as e:
             raise ApiError(400, ErrorCode.INVALID_NAME, str(e)) from e
-        site = SiteRow(slug=slug, name=body.name.strip(), created_at=backend.clock.now())
-        try:
-            backend.db.insert_site(site)
-        except Conflict as e:
-            raise ApiError(409, ErrorCode.SITE_EXISTS, f"a site with the slug {slug!r} exists") from e
-        backend.storage.create_site(slug)
+        site = await backend.storage.create_site(slug, body.name.strip(), backend.clock.now())
         audit(request, "create_site", site=slug)
         return _public_site(backend, site)
 
@@ -232,7 +223,6 @@ def register_routes(app: FastAPI) -> None:
         if confirm != site.slug:
             raise ApiError(400, ErrorCode.CONFIRM_MISMATCH, f"pass ?confirm={site.slug} to delete the site")
         await backend.storage.delete_site(site.slug)
-        backend.db.delete_site(site.slug)
         audit(request, "delete_site", site=site.slug)
         return Response(status_code=204)
 
@@ -261,7 +251,7 @@ def register_routes(app: FastAPI) -> None:
         slug: str,
         path: str,
         request: Request,
-        actor: Annotated[Actor, Depends(requires("upload_file"))],
+        _: Annotated[Actor, Depends(requires("upload_file"))],
         overwrite: bool = False,
     ) -> JSONResponse:
         backend = _backend(request)
@@ -273,7 +263,6 @@ def register_routes(app: FastAPI) -> None:
             request.stream(),
             overwrite=overwrite,
             declared_length=_declared_length(request),
-            holder=_holder(actor),
         )
         audit(
             request, "upload_file", site=site.slug, path=target, bytes=result.bytes, replaced=result.replaced
@@ -295,12 +284,12 @@ def register_routes(app: FastAPI) -> None:
 
     @app.delete(route("delete_file").path, status_code=204, tags=["files"])
     async def delete_file(
-        slug: str, path: str, request: Request, actor: Annotated[Actor, Depends(requires("delete_file"))]
+        slug: str, path: str, request: Request, _: Annotated[Actor, Depends(requires("delete_file"))]
     ) -> Response:
         backend = _backend(request)
         site = _site(backend, slug)
         target = _valid_path(path)
-        await backend.storage.delete_file(site.slug, target, holder=_holder(actor))
+        await backend.storage.delete_file(site.slug, target)
         audit(request, "delete_file", site=site.slug, path=target)
         return Response(status_code=204)
 

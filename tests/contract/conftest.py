@@ -63,20 +63,26 @@ def api(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[TestClient]:
         yield client
 
 
+def _implementation(request: pytest.FixtureRequest) -> str:
+    """Which `api` parameter the running test has: "fake" or "real"."""
+    return request.node.callspec.params["api"]
+
+
 @pytest.fixture
-def clock(api: TestClient) -> Clock:
-    """The backend's clock, whichever implementation is under test; `advance(seconds)` moves it."""
+def clock(api: TestClient, request: pytest.FixtureRequest) -> Clock:
+    """The backend's clock, whichever implementation is under test. `advance(seconds)` moves the time
+    that stamps accounts, sessions and a site's `created_at`; a file's `modified_at` comes from the
+    filesystem and does not move with it."""
     state = api.app.state  # type: ignore[attr-defined]
-    return state.fake.clock if hasattr(state, "fake") else state.clock
+    return state.fake.clock if _implementation(request) == "fake" else state.clock
 
 
 @pytest.fixture
-def fake(api: TestClient) -> FakeState:
+def fake(api: TestClient, request: pytest.FixtureRequest) -> FakeState:
     """The fake's state, for tests that need its request record (fake only)."""
-    state = api.app.state  # type: ignore[attr-defined]
-    if not hasattr(state, "fake"):
+    if _implementation(request) == "real":
         pytest.skip("the request record is the fake backend's own; the real one logs instead")
-    return state.fake
+    return api.app.state.fake  # type: ignore[attr-defined]
 
 
 @pytest.fixture

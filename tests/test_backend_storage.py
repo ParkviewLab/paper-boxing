@@ -12,7 +12,9 @@ import asyncio
 import errno
 import hashlib
 import os
-from collections.abc import Iterator
+import sqlite3
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +22,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from paper_boxing.backend import storage as storage_module
-from paper_boxing.backend.storage import PathLocks
+from paper_boxing.backend.db import Database
+from paper_boxing.backend.storage import SiteLocks, Storage
+from paper_boxing.common.errors import ApiError
 from paper_boxing.common.schema import ErrorBody, ErrorCode
 from tests._backend_helpers import backend_app, backend_config, bearer, create_site, login
 
@@ -86,6 +90,36 @@ def test_chunked_upload_without_content_length_streams_to_disk(
     assert resp.status_code == 201, resp.text
     assert resp.json()["bytes"] == 600_000
     assert (_sites(data_dir) / slug / "big.bin").read_bytes() == b"".join(parts)
+
+
+def test_create_site_never_adopts_an_existing_directory(
+    client: TestClient, s: dict[str, str], data_dir: Path
+) -> None:
+    """A leftover sites/<slug>/ on the volume is not a site: creating one there is 409, and it stays as it was."""
+    leftover = _sites(data_dir) / "leftover"
+    leftover.mkdir()
+    (leftover / "index.html").write_text("old")
+    resp = client.post("/api/v1/sites", json={"name": "Leftover"}, headers=s)
+    assert resp.status_code == 409, resp.text
+    assert _code(resp) is ErrorCode.SITE_EXISTS
+    assert "volume" in resp.json()["error"]["message"]
+    assert client.get("/api/v1/sites/leftover", headers=s).status_code == 404
+    assert (leftover / "index.html").read_text() == "old"
+
+
+def test_create_site_removes_its_folder_when_the_row_cannot_be_inserted(
+    client: TestClient, s: dict[str, str], data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(self: Database, site: Any) -> None:
+        raise sqlite3.OperationalError("database or disk is full")
+
+    monkeypatch.setattr(Database, "insert_site", refuse)
+    resp = client.post("/api/v1/sites", json={"name": "Unrecorded"}, headers=s)
+    assert resp.status_code == 500
+    assert not (_sites(data_dir) / "unrecorded").exists()
+    monkeypatch.undo()
+    assert client.get("/api/v1/sites/unrecorded", headers=s).status_code == 404
+    assert client.post("/api/v1/sites", json={"name": "Unrecorded"}, headers=s).status_code == 201
 
 
 def test_delete_site_removes_the_tree(client: TestClient, s: dict[str, str], data_dir: Path) -> None:
@@ -299,6 +333,25 @@ def test_a_failure_at_the_replace_leaves_the_old_file_whole(
     assert list(_staging(data_dir).iterdir()) == []
 
 
+def test_a_full_volume_during_create_site_is_507_and_no_site_exists(
+    client: TestClient, s: dict[str, str], data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_mkdir = Path.mkdir
+
+    def full(self: Path, *args: Any, **kwargs: Any) -> None:
+        if self.name == "no-room":
+            raise OSError(errno.ENOSPC, "No space left on device")
+        real_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", full)
+    resp = client.post("/api/v1/sites", json={"name": "No Room"}, headers=s)
+    assert resp.status_code == 507, resp.text
+    assert _code(resp) is ErrorCode.INSUFFICIENT_STORAGE
+    monkeypatch.undo()
+    assert client.get("/api/v1/sites/no-room", headers=s).status_code == 404
+    assert not (_sites(data_dir) / "no-room").exists()
+
+
 def test_size_cap_on_a_chunked_body_is_413_and_staging_is_clean(
     client: TestClient, s: dict[str, str], data_dir: Path
 ) -> None:
@@ -379,21 +432,103 @@ def test_400_guards(client: TestClient, s: dict[str, str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# The per-path lock
+# The per-site lock, and the deletions it serialises with uploads
 
 
-async def test_writes_to_one_path_are_serialised_and_other_paths_are_not() -> None:
-    locks = PathLocks()
+async def test_changes_to_one_site_are_serialised_and_other_sites_are_not() -> None:
+    locks = SiteLocks()
     order: list[str] = []
 
-    async def hold(path: str, name: str, seconds: float) -> None:
-        async with locks.hold("site", path, name):
+    async def hold(slug: str, name: str, seconds: float) -> None:
+        async with locks.hold(slug):
             order.append(f"{name}:in")
-            assert locks.holder("site", path) == name
+            assert locks.is_locked(slug)
             await asyncio.sleep(seconds)
             order.append(f"{name}:out")
 
-    await asyncio.gather(hold("p", "first", 0.05), hold("p", "second", 0), hold("q", "other", 0))
+    await asyncio.gather(hold("a", "first", 0.05), hold("a", "second", 0), hold("b", "other", 0))
     assert order == ["first:in", "other:in", "other:out", "first:out", "second:in", "second:out"]
     assert len(locks) == 0
-    assert locks.holder("site", "p") is None
+    assert not locks.is_locked("a")
+
+
+@pytest.fixture
+def raw_storage(tmp_path: Path) -> Iterator[Storage]:
+    """A storage over its own directories and database, driven directly from a coroutine."""
+    db = Database.open(tmp_path / "paper-boxing.sqlite3")
+    sites = tmp_path / "sites"
+    staging = tmp_path / "staging"
+    sites.mkdir()
+    staging.mkdir()
+    try:
+        yield Storage(sites, staging, max_upload_bytes=MIB, db=db)
+    finally:
+        db.close()
+
+
+async def _chunks(*parts: bytes) -> AsyncIterator[bytes]:
+    for part in parts:
+        yield part
+
+
+async def _parked_upload(storage: Storage, slug: str, path: str) -> tuple[asyncio.Task[Any], asyncio.Event]:
+    """Start an upload whose body stops after its first chunk until `release` is set, and wait until
+    the first chunk is in staging."""
+    release = asyncio.Event()
+
+    async def body() -> AsyncIterator[bytes]:
+        yield b"first half,"
+        await release.wait()
+        yield b" second half"
+
+    task = asyncio.create_task(storage.write_file(slug, path, body(), overwrite=False, declared_length=None))
+    for _ in range(200):
+        if any(storage.staging_dir.glob("*.part")):
+            break
+        await asyncio.sleep(0.005)
+    assert any(storage.staging_dir.glob("*.part")), "the upload never reached staging"
+    return task, release
+
+
+async def test_an_upload_in_flight_does_not_survive_a_site_deletion(raw_storage: Storage) -> None:
+    """Reproduces the review's finding: a body parked mid-stream while the site is deleted must not
+    recreate sites/<slug>/ after the row is gone (an orphan nginx would serve and no route could reach)."""
+    storage = raw_storage
+    await storage.create_site("race", "Race", datetime.now(UTC))
+    task, release = await _parked_upload(storage, "race", "index.html")
+    await storage.delete_site("race")
+    assert not (storage.sites_dir / "race").exists()
+    release.set()
+    with pytest.raises(ApiError) as exc:
+        await task
+    assert exc.value.status == 404
+    assert not (storage.sites_dir / "race").exists()
+    assert list(storage.staging_dir.iterdir()) == []
+
+
+async def test_an_upload_in_flight_and_a_folder_deletion_run_one_after_the_other(
+    raw_storage: Storage,
+) -> None:
+    """The deletion completes whole (no ENOTEMPTY from a file landing mid-rmtree); the upload then
+    lands as if it had started after it."""
+    storage = raw_storage
+    await storage.create_site("race", "Race", datetime.now(UTC))
+    await storage.write_file("race", "docs/old.txt", _chunks(b"old"), overwrite=False, declared_length=None)
+    task, release = await _parked_upload(storage, "race", "docs/new.txt")
+    await storage.delete_folder("race", "docs", recursive=True)
+    assert not (storage.sites_dir / "race" / "docs").exists()
+    release.set()
+    result = await task
+    assert result.replaced is False and result.bytes == len(b"first half, second half")
+    assert [p.name for p in (storage.sites_dir / "race" / "docs").iterdir()] == ["new.txt"]
+    assert list(storage.staging_dir.iterdir()) == []
+
+
+async def test_the_lock_is_not_held_while_the_body_streams(raw_storage: Storage) -> None:
+    storage = raw_storage
+    await storage.create_site("race", "Race", datetime.now(UTC))
+    task, release = await _parked_upload(storage, "race", "a.txt")
+    assert not storage.locks.is_locked("race")
+    release.set()
+    await task
+    assert (storage.sites_dir / "race" / "a.txt").read_bytes() == b"first half, second half"

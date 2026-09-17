@@ -16,19 +16,22 @@ inside a site means the volume was changed by hand, and the API leaves it
 alone; listings skip such entries.
 
 Writes. An upload streams into `staging/`, on the same filesystem, under the
-size cap; the file is fsynced and moved into place with `os.replace`, so a
-reader (nginx included) sees the old file or the new one and never a partial
-one, and a failure of any kind leaves the old file whole and the staging file
-removed. Writes to one path are serialised by a named lock, after
-ebony-enriching's mutex; it is an `asyncio.Lock` rather than a threading one
-because the critical section awaits the request body. A disk-full or quota
-error is `507 insufficient_storage` with nothing half-written.
+size cap and with no lock held; the staging name is per request. Only then
+is the site's lock taken, for the short critical section that confirms the
+site still exists, re-runs the containment and target checks, and moves the
+file into place with `os.replace`, so a reader (nginx included) sees the old
+file or the new one and never a partial one, and a failure of any kind
+leaves the old file whole and the staging file removed. Every change to a
+site's tree (a file landing, a file or folder removed, the site created or
+removed) runs under that one per-site `asyncio.Lock`, so an upload whose
+body arrived while a deletion ran cannot recreate what the deletion removed.
+A disk-full or quota error is `507 insufficient_storage` with nothing
+half-written.
 """
 
 from __future__ import annotations
 
 import asyncio
-import errno
 import hashlib
 import logging
 import os
@@ -43,13 +46,13 @@ from enum import Enum
 from pathlib import Path
 from typing import BinaryIO
 
+from paper_boxing.backend.db import Conflict, Database, SiteRow
 from paper_boxing.common.errors import ApiError
 from paper_boxing.common.schema import EntryType, ErrorCode, FileEntry, FileListing, UploadResult
 
 logger = logging.getLogger(__name__)
 
 READ_CHUNK = 1024 * 1024
-_STORAGE_FULL = frozenset({errno.ENOSPC, errno.EDQUOT})
 
 
 class Kind(Enum):
@@ -102,39 +105,32 @@ def _mtime(timestamp: float) -> datetime:
 @dataclass
 class _LockEntry:
     lock: asyncio.Lock
-    holder: str | None = None
     waiting: int = 0
 
 
-class PathLocks:
-    """One named `asyncio.Lock` per (site, path), created on first use and dropped when nobody holds or
-    awaits it, so writes to one path run one at a time while writes to different paths proceed together."""
+class SiteLocks:
+    """One `asyncio.Lock` per site, created on first use and dropped when nobody holds or awaits it."""
 
     def __init__(self) -> None:
-        self._entries: dict[tuple[str, str], _LockEntry] = {}
+        self._entries: dict[str, _LockEntry] = {}
 
     @asynccontextmanager
-    async def hold(self, slug: str, path: str, holder: str) -> AsyncIterator[None]:
-        key = (slug, path)
-        entry = self._entries.get(key)
+    async def hold(self, slug: str) -> AsyncIterator[None]:
+        entry = self._entries.get(slug)
         if entry is None:
-            entry = self._entries[key] = _LockEntry(asyncio.Lock())
+            entry = self._entries[slug] = _LockEntry(asyncio.Lock())
         entry.waiting += 1
         try:
             async with entry.lock:
-                entry.holder = holder
-                try:
-                    yield
-                finally:
-                    entry.holder = None
+                yield
         finally:
             entry.waiting -= 1
-            if entry.waiting == 0 and self._entries.get(key) is entry:
-                del self._entries[key]
+            if entry.waiting == 0 and self._entries.get(slug) is entry:
+                del self._entries[slug]
 
-    def holder(self, slug: str, path: str) -> str | None:
-        entry = self._entries.get((slug, path))
-        return None if entry is None else entry.holder
+    def is_locked(self, slug: str) -> bool:
+        entry = self._entries.get(slug)
+        return entry is not None and entry.lock.locked()
 
     def __len__(self) -> int:
         return len(self._entries)
@@ -171,14 +167,25 @@ def tree_stats(directory: Path) -> TreeStats:
     return TreeStats(file_count=count, bytes=total, newest_mtime=newest)
 
 
-class Storage:
-    """The site trees under `sites_dir`, with `staging_dir` beside them on the same filesystem."""
+@dataclass(frozen=True)
+class Staged:
+    """A request body received whole into staging, with what was learnt while receiving it."""
 
-    def __init__(self, sites_dir: Path, staging_dir: Path, *, max_upload_bytes: int) -> None:
+    path: Path
+    sha256: str
+    bytes: int
+
+
+class Storage:
+    """The site trees under `sites_dir`, with `staging_dir` beside them on the same filesystem, and the
+    site rows in `db` that say which trees are sites."""
+
+    def __init__(self, sites_dir: Path, staging_dir: Path, *, max_upload_bytes: int, db: Database) -> None:
         self._sites_dir = sites_dir
         self._staging_dir = staging_dir
         self._max_upload_bytes = max_upload_bytes
-        self.locks = PathLocks()
+        self._db = db
+        self.locks = SiteLocks()
 
     @property
     def sites_dir(self) -> Path:
@@ -191,10 +198,6 @@ class Storage:
     @property
     def max_upload_bytes(self) -> int:
         return self._max_upload_bytes
-
-    def ensure_layout(self) -> None:
-        self._sites_dir.mkdir(parents=True, exist_ok=True)
-        self._staging_dir.mkdir(parents=True, exist_ok=True)
 
     def clean_staging(self) -> int:
         """Remove whatever a previous run left in `staging/`: nothing there is ever in progress after a start."""
@@ -245,8 +248,33 @@ class Storage:
 
     # ---- sites ----
 
-    def create_site(self, slug: str) -> None:
-        self.site_dir(slug).mkdir(parents=True, exist_ok=True)
+    async def create_site(self, slug: str, name: str, created_at: datetime) -> SiteRow:
+        """Create the site's folder, then its row. A folder already on the volume is never adopted:
+        it is `409 site_exists`, and a row that fails to insert takes the new folder away with it."""
+        async with self.locks.hold(slug):
+            if self._db.site_by_slug(slug) is not None:
+                raise ApiError(409, ErrorCode.SITE_EXISTS, f"a site with the slug {slug!r} exists")
+            root = self.site_dir(slug)
+            try:
+                root.mkdir(parents=True, exist_ok=False)
+            except FileExistsError as e:
+                raise ApiError(
+                    409,
+                    ErrorCode.SITE_EXISTS,
+                    f"a site with the slug {slug!r} exists: its directory is already on the volume",
+                ) from e
+            site = SiteRow(slug=slug, name=name, created_at=created_at)
+            try:
+                self._db.insert_site(site)
+            except Conflict as e:
+                with suppress(OSError):
+                    root.rmdir()
+                raise ApiError(409, ErrorCode.SITE_EXISTS, f"a site with the slug {slug!r} exists") from e
+            except BaseException:
+                with suppress(OSError):
+                    root.rmdir()
+                raise
+        return site
 
     def site_totals(self, slug: str) -> tuple[int, int]:
         """(file count, bytes) of a site; (0, 0) when its folder is missing on disk."""
@@ -257,13 +285,17 @@ class Storage:
         return stats.file_count, stats.bytes
 
     async def delete_site(self, slug: str) -> None:
-        """Move the site's folder into staging in one rename, so nginx stops serving it at once, then
-        remove it there."""
-        root = self.site_dir(slug)
-        if kind_of(root) is Kind.MISSING:
+        """Under the site's lock, move its folder into staging in one rename (so nginx stops serving it
+        at once) and delete its row; then remove the parked folder."""
+        parked: Path | None = None
+        async with self.locks.hold(slug):
+            root = self.site_dir(slug)
+            if kind_of(root) is not Kind.MISSING:
+                parked = self._staging_dir / f"{slug}.deleting-{secrets.token_hex(4)}"
+                os.replace(root, parked)
+            self._db.delete_site(slug)
+        if parked is None:
             return
-        parked = self._staging_dir / f"{slug}.deleting-{secrets.token_hex(4)}"
-        os.replace(root, parked)
         if kind_of(parked) is Kind.FOLDER:
             await asyncio.to_thread(shutil.rmtree, parked, ignore_errors=True)
         else:
@@ -344,21 +376,35 @@ class Storage:
         *,
         overwrite: bool,
         declared_length: int | None,
-        holder: str,
     ) -> UploadResult:
         """Store the streamed body at `path`, creating missing parent folders.
 
-        Checks run in the contract's order: the path (400), the size cap against the declared
-        length (413), then the conflicts (409) under the path's lock, which stays held until the
-        new file is in place. The cap is enforced again on the bytes actually received.
+        The path (400) and the declared length against the cap (413) are checked before a byte
+        is read; the body then streams into staging, the cap enforced on the bytes received, with
+        no lock held. Under the site's lock the site row is confirmed to still exist (404 when the
+        site was deleted meanwhile), the containment and target checks run again (400, 409), and
+        the file moves into place. A failure anywhere removes the staging file.
         """
-        target = self.resolve(slug, path)
+        self.resolve(slug, path)
         if declared_length is not None and declared_length > self._max_upload_bytes:
             raise self._too_large()
-        async with self.locks.hold(slug, path, holder):
-            replaced = self._check_write_target(slug, target, path, overwrite=overwrite)
-            digest, size = await self._stage_and_replace(target, body)
-        return UploadResult(path=path, bytes=size, sha256=digest, replaced=replaced)
+        staged = await self._stage(body)
+        try:
+            async with self.locks.hold(slug):
+                if self._db.site_by_slug(slug) is None:
+                    raise ApiError(
+                        404,
+                        ErrorCode.NOT_FOUND,
+                        f"site {slug!r} was deleted while the file was being received",
+                    )
+                target = self.resolve(slug, path)
+                replaced = self._check_write_target(slug, target, path, overwrite=overwrite)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(staged.path, target)
+        except BaseException:
+            _unlink(staged.path)
+            raise
+        return UploadResult(path=path, bytes=staged.bytes, sha256=staged.sha256, replaced=replaced)
 
     def _check_write_target(self, slug: str, target: Path, path: str, *, overwrite: bool) -> bool:
         """Validate a write to `target`; return whether it replaces an existing file."""
@@ -386,7 +432,8 @@ class Storage:
             return True
         return False
 
-    async def _stage_and_replace(self, target: Path, body: AsyncIterator[bytes]) -> tuple[str, int]:
+    async def _stage(self, body: AsyncIterator[bytes]) -> Staged:
+        """Receive the body into a fresh staging file, hashing as it arrives and enforcing the cap."""
         staging = self._staging_dir / f"{secrets.token_hex(8)}.part"
         digest = hashlib.sha256()
         size = 0
@@ -402,21 +449,10 @@ class Storage:
                     out.write(chunk)
                 out.flush()
                 await asyncio.to_thread(os.fsync, out.fileno())
-            target.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(staging, target)
-        except OSError as e:
-            _unlink(staging)
-            if e.errno in _STORAGE_FULL:
-                raise ApiError(
-                    507,
-                    ErrorCode.INSUFFICIENT_STORAGE,
-                    "the disk is full or the quota is reached; nothing was written",
-                ) from e
-            raise
         except BaseException:
-            _unlink(staging)
+            _unlink(staging)  # a full disk included: the app answers 507 once the staging file is gone
             raise
-        return digest.hexdigest(), size
+        return Staged(path=staging, sha256=digest.hexdigest(), bytes=size)
 
     def _too_large(self) -> ApiError:
         return ApiError(
@@ -426,9 +462,9 @@ class Storage:
             f" ({self._max_upload_bytes // (1024 * 1024)} MiB)",
         )
 
-    async def delete_file(self, slug: str, path: str, *, holder: str) -> None:
-        target = self.resolve(slug, path)
-        async with self.locks.hold(slug, path, holder):
+    async def delete_file(self, slug: str, path: str) -> None:
+        async with self.locks.hold(slug):
+            target = self.resolve(slug, path)
             kind = kind_of(target)
             if kind is Kind.FOLDER:
                 raise ApiError(409, ErrorCode.NOT_A_FILE, f"{path!r} is a folder; use the folders route")
@@ -439,20 +475,21 @@ class Storage:
             target.unlink()
 
     async def delete_folder(self, slug: str, path: str, *, recursive: bool) -> None:
-        target = self.resolve(slug, path)
-        kind = kind_of(target)
-        if kind is Kind.FILE:
-            raise ApiError(409, ErrorCode.NOT_A_FOLDER, f"{path!r} is a file; use the files route")
-        if kind is Kind.SPECIAL:
-            raise _invalid_path(path, "not a folder")
-        if kind is Kind.MISSING:
-            raise ApiError(404, ErrorCode.NOT_FOUND, f"no folder {path!r} in site {slug!r}")
-        with os.scandir(target) as entries:
-            empty = next(iter(entries), None) is None
-        if not empty and not recursive:
-            raise ApiError(
-                409,
-                ErrorCode.FOLDER_NOT_EMPTY,
-                f"{path!r} is not empty; pass recursive=true to delete everything in it",
-            )
-        await asyncio.to_thread(shutil.rmtree, target)
+        async with self.locks.hold(slug):
+            target = self.resolve(slug, path)
+            kind = kind_of(target)
+            if kind is Kind.FILE:
+                raise ApiError(409, ErrorCode.NOT_A_FOLDER, f"{path!r} is a file; use the files route")
+            if kind is Kind.SPECIAL:
+                raise _invalid_path(path, "not a folder")
+            if kind is Kind.MISSING:
+                raise ApiError(404, ErrorCode.NOT_FOUND, f"no folder {path!r} in site {slug!r}")
+            with os.scandir(target) as entries:
+                empty = next(iter(entries), None) is None
+            if not empty and not recursive:
+                raise ApiError(
+                    409,
+                    ErrorCode.FOLDER_NOT_EMPTY,
+                    f"{path!r} is not empty; pass recursive=true to delete everything in it",
+                )
+            await asyncio.to_thread(shutil.rmtree, target)
