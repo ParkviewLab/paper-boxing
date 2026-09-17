@@ -233,7 +233,11 @@ class Accounts:
         if not hmac.compare_digest(stored, digest):
             return None
         now = self._clock.now()
-        if token.revoked_at is not None or (token.expires_at is not None and token.expires_at <= now):
+        if token.revoked_at is not None:
+            return None
+        if token.expires_at is not None and token.expires_at <= now:
+            # Expiry is final: the session is ended when it is first presented expired.
+            self._db.revoke_token(token.id, now)
             return None
         user = self._db.user_by_id(token.user_id)
         if user is None:
