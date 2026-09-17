@@ -68,8 +68,8 @@ paper-boxing-develop/
 │   ├── backend/          FastAPI app, storage, accounts and tokens
 │   ├── frontend/         NiceGUI pages, sign-in, per-session state
 │   └── mcp/              the handbook's MCP server layout
-├── tests/                common/, backend/, frontend/, mcp/, integration/
-├── docs/                 design.md, deployment.md, CONTRIBUTING.md, in-flight_ideas.md
+├── tests/                test_<module>.py units, contract/, integration/; each worker adds its own
+├── docs/                 design.md, api.md, northstar.md, deployment.md, CONTRIBUTING.md, in-flight_ideas.md
 └── .github/workflows/    the handbook's templates; release.yml builds the three targets in a matrix
 ```
 
@@ -77,9 +77,9 @@ paper-boxing-develop/
 - Component boundaries are enforced by a test, `tests/test_import_boundaries.py`, which walks the source with `ast` and needs no extra dependency: `common` imports none of the three components; `backend`, `frontend` and `mcp` may import `common` but never each other.
 - One version: every release builds all three images from the same commit with the same tags, so the frontend and MCP server always match the backend's API, and a deployment names one version for the whole stack.
 - Dependencies: the shared ones are core. Each image installs only its own extra:
-  - `backend`: fastapi, uvicorn, python-multipart, argon2-cffi;
+  - `backend`: fastapi, uvicorn, `starlette>=1.3.1`, python-multipart, argon2-cffi;
   - `frontend`: nicegui, httpx;
-  - `mcp`: `mcp>=1.29,<2`, `starlette>=1.3.1`, uvicorn, httpx.
+  - `mcp`: `mcp>=1.29,<2`, fastapi, uvicorn, `starlette>=1.3.1`, httpx.
 - Entry points: `python -m paper_boxing.backend`, `python -m paper_boxing.frontend` and `python -m paper_boxing.mcp`, each also installed as a console script.
 - The MCP subpackage follows the handbook's module layout from `mcp-server-conventions.md`: `config.py` (a pure leaf), `__main__.py`, `server.py`, `tools.py`, `schema.py`, and `permissions.py`. It serves Streamable-HTTP only, with no stdio transport, because it runs in the stack on the home-lab host for every machine on the LAN. The backend is a plain FastAPI service with the same `config.py` discipline.
 - Docker:
@@ -88,7 +88,7 @@ paper-boxing-develop/
 - `docker-compose.yml` has four services (backend, frontend, MCP server, site server) and one named volume, as a copy-and-edit example in the handbook's compose shape, with settings read from `${…}` variables so the same file works in Portainer.
 - The nginx configuration is inline in the compose file, as a Compose `configs:` entry with `content:` mounted at `/etc/nginx/conf.d/default.conf`. That keeps the stack a single file that can be pasted into Portainer's web editor. If the host's Portainer rejects inline configs, fall back to a bind-mounted file and document that.
 - `release.yml` builds the three targets in a matrix into `ghcr.io/parkviewlab/paper-boxing-{backend,frontend,mcp}`, each with the tags version, major.minor and `latest`, for amd64 and arm64.
-- Publishing: Docker images on GHCR only, decided by Gary on 2026-09-15. There is no PyPI or TestPyPI publishing. The template `release.yml` loses its `pypi` job, and its `github-release` job then depends on `gate` and `docker` only. `dev-release.yml`, if adopted, publishes only `:dev` images. No trusted publisher is configured. paper-boxing is designed to run in Docker, and its documentation covers Docker and Portainer only.
+- Publishing: Docker images on GHCR only, decided by Gary on 2026-09-15. There is no PyPI or TestPyPI publishing. The template `release.yml` loses its `pypi` job, and its `changelog` job then depends on `gate` and `docker` only. `dev-release.yml`, if adopted, publishes only `:dev` images. No trusted publisher is configured. paper-boxing is designed to run in Docker, and its documentation covers Docker and Portainer only.
 
 ## 4. Backend
 
@@ -266,7 +266,7 @@ Visual checks follow the handbook's rule: run the app and take screenshots befor
 - Branch protection: required checks on `develop` with admin bypass; `main` protected only against force-push and deletion.
 - Pyproject tool settings from the template.
 - `cliff.toml` verbatim, and `scripts/generate_changelog.py`.
-- Workflows `reuse.yml`, `version-guard.yml`, `test.yml`, `release.yml` (matrix), `license-check.yml`, and optionally `dev-release.yml`. Actions pinned exactly as `ci.md` lists.
+- Workflows `reuse.yml`, `version-guard.yml`, `test.yml`, `release.yml` (matrix), `license-check.yml`, and optionally `dev-release.yml`. Actions pinned exactly as `ci.md` lists. `version-guard.yml` departs from the template in one respect: it passes when the base branch has no version file, because a first introduction is not a bump (section 10, item 6).
 - Licensing copied from deco-assaying, not from the handbook's AGPL templates:
   - `LICENSE-MIT`, `LICENSE-APACHE`, `LICENSES/MIT.txt` and `LICENSES/Apache-2.0.txt`;
   - a `REUSE.toml` with one annotation;
@@ -336,6 +336,7 @@ The handbook is a working guide that evolves with practice (Gary, 2026-09-15). p
 3. An MCP server that calls its own backend: Streamable-HTTP only, with per-user typed tokens confirmed with the backend on every request, as an alternative to the single shared token.
 4. Web frontends with NiceGUI: per-client page construction, `app.storage.user` for per-user state, an authentication middleware, and multi-user tests with `nicegui.testing`.
 5. Serving user-supplied static sites with a stock nginx container whose configuration lives inline in the compose file.
+6. A version guard that passes when the base branch has no version file: a first introduction of `pyproject.toml` (or `package.json`, or `VERSION.txt`) is not a bump. The template compares against an empty string there and fails the scaffold pull request of every new repository.
 
 ## Decisions
 

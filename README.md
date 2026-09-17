@@ -12,7 +12,7 @@ paper-boxing is where a project's documents live during early design and specifi
 
 ## Status
 
-Version `0.1.0`, under construction. This is the scaffold: the package skeleton, the API contract, the images and the stack. The backend's REST API, the frontend's pages and the MCP server's tools are being built against the contract in [`docs/api.md`](docs/api.md); the design is [`docs/design.md`](docs/design.md) and the intent [`docs/northstar.md`](docs/northstar.md).
+Under construction. This is the scaffold: the package skeleton, the API contract, the images and the stack. The backend's REST API, the frontend's pages and the MCP server's tools are being built against the contract in [`docs/api.md`](docs/api.md); the design is [`docs/design.md`](docs/design.md) and the intent [`docs/northstar.md`](docs/northstar.md).
 
 Four containers make a deployment:
 
@@ -123,8 +123,8 @@ There is no shared static token: an agent authenticates with an agent token that
 Tag-driven via the `Release` workflow on push of a `v*` tag. Use the [`ParkviewLab/dev-tools`](https://github.com/ParkviewLab/dev-tools) helpers; `pyproject.toml` is the only place the version lives, and the workflow's gate refuses a tag that does not match it.
 
 ```sh
-git bump patch              # 0.1.0 → 0.1.1, committed
-git release                 # annotated tag v0.1.1 from pyproject.toml
+git bump patch              # X.Y.Z → X.Y.(Z+1), committed
+git release                 # annotated tag vX.Y.(Z+1) from pyproject.toml
 git push --follow-tags      # CI fires
 ```
 
