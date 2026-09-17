@@ -179,9 +179,8 @@ def _below(folder: str) -> tuple[str, tuple[object, ...]]:
 class Database:
     """The one connection to `paper-boxing.sqlite3`; `open()` creates the file and the schema."""
 
-    def __init__(self, connection: sqlite3.Connection, path: Path) -> None:
+    def __init__(self, connection: sqlite3.Connection) -> None:
         self._conn = connection
-        self._path = path
         self._lock = threading.RLock()
 
     @classmethod
@@ -197,11 +196,7 @@ class Database:
         conn.executescript(_SCHEMA)
         conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         conn.commit()
-        return cls(conn, path)
-
-    @property
-    def path(self) -> Path:
-        return self._path
+        return cls(conn)
 
     def close(self) -> None:
         with self._lock:
@@ -280,11 +275,11 @@ class Database:
                 ),
             )
 
-    def token_by_secret(self, secret_sha256: str) -> tuple[TokenRow, str] | None:
-        """The token stored under a digest, with the stored digest so the caller can compare in constant time."""
+    def token_by_secret(self, secret_sha256: str) -> TokenRow | None:
+        """The token stored under a secret's digest."""
         with self.transaction() as conn:
             row = conn.execute("SELECT * FROM tokens WHERE secret_sha256 = ?", (secret_sha256,)).fetchone()
-        return None if row is None else (_token(row), row["secret_sha256"])
+        return None if row is None else _token(row)
 
     def token_by_id(self, token_id: str) -> TokenRow | None:
         with self.transaction() as conn:

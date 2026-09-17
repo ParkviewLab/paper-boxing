@@ -251,6 +251,22 @@ def test_admin_bootstrap_creates_one_account_once_and_never_again(
     assert _column(empty, "SELECT username FROM users") == []
 
 
+def test_a_zero_or_negative_setting_is_refused_at_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from paper_boxing.backend.config import load_config
+
+    with pytest.raises(ValueError, match="PAPER_BOXING_SESSION_DAYS"):
+        backend_config(tmp_path / "data", session_days=0)
+    with pytest.raises(ValueError, match="PAPER_BOXING_MAX_UPLOAD_MB"):
+        backend_config(tmp_path / "data", max_upload_mb=-1)
+    monkeypatch.setenv("PAPER_BOXING_SESSION_DAYS", "0")
+    with pytest.raises(ValueError, match="PAPER_BOXING_SESSION_DAYS"):
+        load_config()
+    monkeypatch.setenv("PAPER_BOXING_SESSION_DAYS", "1")
+    assert load_config().session_days == 1
+
+
 def test_an_invalid_admin_pair_stops_the_service_from_starting(tmp_path: Path) -> None:
     short = backend_config(tmp_path / "data", admin=("admin", "short"))
     with pytest.raises(ValueError, match="PAPER_BOXING_ADMIN_PASSWORD"), TestClient(backend_app(short)):
@@ -368,10 +384,10 @@ def test_requests_are_logged_under_the_acting_token_with_the_via_header(
 
 
 def test_framework_errors_use_the_contract_error_body(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     app = backend_app(backend_config(tmp_path / "data"))
-    with TestClient(app, raise_server_exceptions=False) as client:
+    with TestClient(app, raise_server_exceptions=False) as client, caplog.at_level(logging.ERROR):
         s = bearer(login(client))
         slug = create_site(client, s["Authorization"].split()[1], "Errors")
         cases = [
@@ -412,6 +428,11 @@ def test_framework_errors_use_the_contract_error_body(
             assert resp.status_code == status, resp.text
             body = ErrorBody.model_validate(resp.json())
             assert body.error.code is code and body.error.message
+            if status == 500:
+                # the body says nothing about the exception; the server log carries the diagnostic
+                assert body.error.message == "internal error"
+                assert "simulated defect" not in resp.text and "/data/sites/gone" not in resp.text
+    assert "simulated defect" in caplog.text and "/data/sites/gone" in caplog.text
 
 
 def test_registered_routes_are_exactly_the_table_in_order(tmp_path: Path) -> None:
