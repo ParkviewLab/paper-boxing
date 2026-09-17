@@ -14,10 +14,10 @@ BRAND_COLOURS = {"#90b095", "#00C2C7", "#004f52"}
 
 
 def test_mark_is_the_handbook_mark_scaled() -> None:
-    svg = layout.mark_svg(56)
+    svg = layout.mark_svg(64, mono=False)
     root = ET.fromstring(svg)
     assert root.tag.endswith("svg")
-    assert root.attrib["height"] == "56" and root.attrib["width"] == "87"
+    assert root.attrib["height"] == "64" and root.attrib["width"] == "100"
     assert root.attrib["viewBox"] == "60 95 280 180"
     assert "Parkview Lab" in svg
     fills = {el.attrib.get("fill") for el in root.iter() if el.attrib.get("fill")}
@@ -29,5 +29,6 @@ def test_brand_loads_nothing_from_the_network() -> None:
     assert "data:font/woff2;base64," in css
     assert "fonts.googleapis" not in css and "@import" not in css and "http" not in css
     svg = layout.mark_svg()
+    assert "#00C2C7" not in svg and "#90b095" not in svg
     assert "http" not in svg.replace("http://www.w3.org/2000/svg", "")
     assert "<script" not in svg

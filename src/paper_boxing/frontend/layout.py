@@ -33,20 +33,32 @@ SAGE = "#90b095"
 _BRAND = resources.files("paper_boxing.frontend").joinpath("brand")
 
 
-def mark_svg(height_px: int = 56) -> str:
+MARK_MONO = {
+    "#90b095": "rgba(255,255,255,0.38)",  # the foliage, softened so the figure reads over it
+    "#00C2C7": "#ffffff",  # the node-and-edge figure and its arcs
+    "#004f52": "rgba(0,79,82,0.9)",  # the hexagon's fill stays the ground colour so the figure reads as a cut-out
+}
+
+
+def mark_svg(height_px: int = 64, *, mono: bool = True) -> str:
     """The ParkviewLab mark as inline SVG, cropped to its drawn extents and scaled to `height_px` tall.
 
     The vendored file draws inside a 400-unit square with wide margins (its content spans roughly
     x 60..340 and y 95..275 of that box); cropping the viewBox lets the mark sit at the wordmark's
-    height without the empty margin, and the file itself is unchanged.
+    height without the empty margin. With `mono`, the three brand colours are re-mapped to white
+    for the deep-teal header; the file itself is unchanged either way.
     """
     svg = _BRAND.joinpath("parkview_lab_mark.svg").read_text()
     width_px = round(height_px * 280 / 180)
-    return svg.replace(
+    svg = svg.replace(
         'width="400" height="400" viewBox="0 0 400 400"',
         f'width="{width_px}" height="{height_px}" viewBox="60 95 280 180"',
         1,
     )
+    if mono:
+        for colour, replacement in MARK_MONO.items():
+            svg = svg.replace(f'"{colour}"', f'"{replacement}"')
+    return svg
 
 
 def brand_css() -> str:
@@ -56,10 +68,10 @@ def brand_css() -> str:
 @font-face {{ font-family: 'Michroma'; font-style: normal; font-weight: 400; font-display: swap;
   src: url('data:font/woff2;base64,{font}') format('woff2'); }}
 .pb-wordmark {{ font-family: 'Michroma', ui-sans-serif, system-ui, sans-serif; color: #fff; line-height: 1;
-  display: flex; flex-direction: column; gap: 6px; }}
-.pb-wordmark .pb-park {{ font-size: 22px; letter-spacing: 0.06em; }}
+  display: flex; flex-direction: column; gap: 4px; }}
+.pb-wordmark .pb-park {{ font-size: 15.5px; letter-spacing: 0.06em; }}
 .pb-wordmark .pb-rule {{ height: 2px; background: {TEAL}; width: 100%; }}
-.pb-wordmark .pb-lab {{ font-size: 12px; letter-spacing: 0.32em; }}
+.pb-wordmark .pb-lab {{ font-size: 8.5px; letter-spacing: 0.32em; }}
 .pb-app {{ color: rgba(255,255,255,0.85); font-size: 15px; letter-spacing: 0.02em; }}
 </style>"""
 
