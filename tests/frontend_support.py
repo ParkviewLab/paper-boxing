@@ -11,6 +11,7 @@ with helpers that sign a simulated user in through the real login page.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -46,6 +47,11 @@ def new_user(*, cookies: httpx.Cookies | None = None) -> User:
     """A second simulated user (another browser); with `cookies`, another tab of the same browser."""
     http = httpx.AsyncClient(transport=httpx.ASGITransport(core.app), base_url="http://test", cookies=cookies)
     return User(http)
+
+
+def browser_copies(user: User, *, success: bool) -> None:
+    """Decide what the simulated browser answers to the clipboard code (there is no clipboard in a simulation)."""
+    user.javascript_rules[re.compile(r".*document\.execCommand\(\"copy\"\).*", re.S)] = lambda _: success
 
 
 def act(user: User) -> User:

@@ -21,9 +21,18 @@ from nicegui import app
 from paper_boxing.common.client import BackendClient
 from paper_boxing.frontend.config import FrontendConfig
 
+# A short connect, a long read and write: a large upload over a slow link must not be reported
+# as an unreachable backend after it has in fact succeeded (ten minutes suits the 200 MB cap).
+TIMEOUT = httpx.Timeout(connect=10.0, read=600.0, write=600.0, pool=10.0)
+
 _config: FrontendConfig | None = None
 _factory: Callable[[], httpx.AsyncClient] | None = None
 _client: BackendClient | None = None
+
+
+def default_http_client(cfg: FrontendConfig) -> httpx.AsyncClient:
+    """The httpx client that talks to the backend at `cfg.backend_url`."""
+    return httpx.AsyncClient(base_url=cfg.backend_url, timeout=TIMEOUT)
 
 
 def configure(
@@ -36,7 +45,7 @@ def configure(
     """
     global _config, _factory
     _config = cfg
-    _factory = http_client_factory or (lambda: httpx.AsyncClient(base_url=cfg.backend_url, timeout=60.0))
+    _factory = http_client_factory or (lambda: default_http_client(cfg))
     app.on_startup(_open)
     app.on_shutdown(_close)
 

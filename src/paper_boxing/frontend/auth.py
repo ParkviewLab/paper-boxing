@@ -21,22 +21,15 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from paper_boxing.common.client import BackendError
+from paper_boxing.common.errors import error_response
+from paper_boxing.common.schema import ErrorCode
+from paper_boxing.frontend.paths import LOGIN_PATH, is_fetch, is_public
 
-LOGIN_PATH = "/login"
-
-# Paths that need no session: the sign-in page, the ops endpoints, and everything NiceGUI
-# serves for itself (static assets, the socket, uploads).
-PUBLIC_PATHS = frozenset({LOGIN_PATH, "/health", "/admin/version", "/favicon.ico"})
-PUBLIC_PREFIXES = ("/_nicegui", "/socket.io")
+__all__ = ["LOGIN_PATH", "AuthMiddleware", "is_public", "login_url", "safe_next"]
 
 _TOKEN = "token"
 _USERNAME = "username"
 _USER_ID = "user_id"
-
-
-def is_public(path: str) -> bool:
-    return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
 
 
 def login_url(next_path: str | None) -> str:
@@ -71,11 +64,13 @@ def token() -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-def require_token() -> str:
-    """The session token; raises the contract's 401 when none is stored, so callers treat it like an expired one."""
+def session_token() -> str:
+    """The session token behind a page or a handler; the middleware admits none without one."""
     value = token()
     if value is None:
-        raise BackendError(401, "unauthorized", "you are not signed in")
+        raise RuntimeError(
+            "no session token is stored for this browser; the middleware should have redirected"
+        )
     return value
 
 
@@ -89,8 +84,8 @@ def user_id() -> str:
     return value if isinstance(value, str) else ""
 
 
-def sign_in(session_token: str, user_name: str, uid: str) -> None:
-    app.storage.user.update({_TOKEN: session_token, _USERNAME: user_name, _USER_ID: uid})
+def sign_in(session: str, user_name: str, uid: str) -> None:
+    app.storage.user.update({_TOKEN: session, _USERNAME: user_name, _USER_ID: uid})
 
 
 def sign_out() -> None:
@@ -103,7 +98,8 @@ def sign_out() -> None:
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    """Redirect a request for a page to `/login` unless a session token is stored for this browser.
+    """Send a request for a page to `/login` unless a session token is stored for this browser;
+    answer a fetch (a download) with a 401 in the contract's body instead.
 
     NiceGUI's own middleware runs outside this one and has already created the
     per-browser storage, so `app.storage.user` is readable here.
@@ -111,10 +107,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
-        if not is_public(path) and token() is None:
-            wanted = f"{path}?{request.url.query}" if request.url.query else path
-            return RedirectResponse(login_url(wanted), status_code=303)
-        return await call_next(request)
+        if is_public(path) or token() is not None:
+            return await call_next(request)
+        if is_fetch(path):
+            return error_response(401, ErrorCode.UNAUTHORIZED, "sign in to download files")
+        wanted = f"{path}?{request.url.query}" if request.url.query else path
+        return RedirectResponse(login_url(wanted), status_code=303)
 
 
 def install_middleware() -> None:

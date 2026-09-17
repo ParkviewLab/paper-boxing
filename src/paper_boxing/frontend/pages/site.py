@@ -16,7 +16,7 @@ that tab and are never seen from another tab or by another person.
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui
@@ -27,17 +27,11 @@ from paper_boxing.common.naming import validate_site_path
 from paper_boxing.common.routes import site_url
 from paper_boxing.common.schema import EntryType, FileEntry
 from paper_boxing.frontend import auth, backend, layout
-
-DOWNLOAD_PREFIX = "/download"
+from paper_boxing.frontend.paths import download_url
 
 
 def folder_url(slug: str, folder: str) -> str:
     return f"/sites/{slug}?{urlencode({'path': folder})}" if folder else f"/sites/{slug}"
-
-
-def download_url(slug: str, path: str) -> str:
-    """The frontend's own download route, which fetches the file from the backend with the caller's session."""
-    return f"{DOWNLOAD_PREFIX}/{quote(slug, safe='')}/{quote(path, safe='/')}"
 
 
 async def page(slug: str, path: str = "") -> RedirectResponse | None:
@@ -75,7 +69,7 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
             ui.link(url, url, new_tab=True).classes("font-mono").mark("site-url")
             ui.button(icon="content_copy", on_click=lambda: layout.copy_to_clipboard(url, "URL")).props(
                 "flat dense round"
-            ).tooltip("Copy the address")
+            ).tooltip("Copy the address").mark("copy-url")
             ui.button("Open", icon="open_in_new", on_click=lambda: ui.navigate.to(url, new_tab=True)).props(
                 "flat dense no-caps"
             )
@@ -135,15 +129,32 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
 
             async def on_uploads(e: MultiUploadEventArguments) -> None:
                 results: list[dict[str, Any]] = []
-                for file in e.files:
+                for index, file in enumerate(e.files):
                     target = f"{folder}/{file.name}" if folder else file.name
                     try:
-                        content = await file.read()
                         result = await client.upload_file(
-                            token, site.slug, target, content, overwrite=bool(overwrite.value)
+                            token,
+                            site.slug,
+                            target,
+                            file.iterate(),
+                            overwrite=bool(overwrite.value),
+                            content_length=file.size(),
                         )
                     except BackendError as err:
                         if err.status == 401:
+                            # the session is gone: say so for this file and every one after it, then leave
+                            for left in e.files[index:]:
+                                left_target = f"{folder}/{left.name}" if folder else left.name
+                                results.append(
+                                    {
+                                        "path": left_target,
+                                        "ok": False,
+                                        "note": "not sent: the session has ended",
+                                    }
+                                )
+                            remember(results)
+                            upload_results.refresh()
+                            uploader.reset()
                             layout.report_error(err)
                             return
                         note = layout.error_text(err)
@@ -215,17 +226,25 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                             on_click=lambda: delete_folder(full),
                         ).props("flat dense no-caps").mark("delete-folder")
                     else:
-                        ui.button(
-                            "Download",
-                            icon="download",
-                            on_click=lambda: ui.download.from_url(download_url(site.slug, full)),
-                        ).props("flat dense no-caps").mark("download-file")
+                        ui.button("Download", icon="download", on_click=lambda: download(full)).props(
+                            "flat dense no-caps"
+                        ).mark("download-file")
                         ui.button("Replace", icon="upload_file", on_click=lambda: replace_file(full)).props(
                             "flat dense no-caps"
                         ).mark("replace-file")
                         ui.button(
                             "Delete", icon="delete", color="negative", on_click=lambda: delete_file(full)
                         ).props("flat dense no-caps").mark("delete-file")
+
+        async def download(full: str) -> None:
+            """Confirm the session with one cheap call first, so an expired one is reported here rather than
+            turning the download into a saved copy of an error."""
+            try:
+                await client.token_self(token)
+            except BackendError as e:
+                layout.report_error(e)
+                return
+            ui.download.from_url(download_url(site.slug, full))
 
         async def replace_file(full: str) -> None:
             with ui.dialog() as dialog, ui.card().classes("gap-3 w-96 max-w-full"):
@@ -237,7 +256,12 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                 async def on_upload(e: UploadEventArguments) -> None:
                     try:
                         result = await client.upload_file(
-                            token, site.slug, full, await e.file.read(), overwrite=True
+                            token,
+                            site.slug,
+                            full,
+                            e.file.iterate(),
+                            overwrite=True,
+                            content_length=e.file.size(),
                         )
                     except BackendError as err:
                         if err.status == 401:

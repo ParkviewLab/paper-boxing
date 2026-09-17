@@ -65,9 +65,9 @@ async def page() -> RedirectResponse | None:
                     "if it is lost, revoke the token and create another."
                 )
                 with ui.row().classes("items-center gap-2 w-full"):
-                    ui.input(value=secret).props("readonly outlined dense").classes("grow font-mono").mark(
-                        "token-secret"
-                    )
+                    layout.select_on_focus(
+                        ui.input(value=secret).props("readonly outlined dense").classes("grow font-mono")
+                    ).mark("token-secret")
                     ui.button(
                         "Copy",
                         icon="content_copy",

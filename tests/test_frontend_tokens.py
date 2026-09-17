@@ -7,6 +7,7 @@ revocation, and the session token never shown."""
 
 from __future__ import annotations
 
+from nicegui import ui
 from nicegui.testing import User
 
 from paper_boxing.common.fake_backend import FakeState
@@ -27,7 +28,15 @@ async def test_secret_is_shown_exactly_once(user: User, frontend_state: FakeStat
     await user.should_see("Token 'claude on the laptop' created")
     (secret,) = _agent_secrets(frontend_state)
     assert secret.startswith("pb_")
-    assert user.find(marker="token-secret").elements.pop().value == secret
+    field = user.find(marker="token-secret").elements.pop()
+    assert isinstance(field, ui.input) and field.value == secret
+    assert field.props.get("readonly") is True
+    assert any(
+        listener.type == "focus" and listener.js_handler for listener in field._event_listeners.values()
+    )
+    support.browser_copies(user, success=True)
+    user.find(marker="copy-secret").click()
+    await user.should_see("Token copied")
     assert frontend_state.tokens[frontend_state.secrets[secret]].scope is Scope.READ_WRITE
     user.find(marker="secret-done").click()
     await user.should_not_see(marker="token-secret")
@@ -39,6 +48,18 @@ async def test_secret_is_shown_exactly_once(user: User, frontend_state: FakeStat
     await user.open("/tokens")
     await user.should_see("claude on the laptop")
     assert secret not in support.page_text(user)
+
+
+async def test_copy_reports_a_failure_honestly(user: User) -> None:
+    """Over plain HTTP the clipboard API is missing and the fallback may be refused; then nothing claims success."""
+    await support.sign_in(user, *support.ADMIN, at="/tokens")
+    user.find(marker="token-name").type("t")
+    user.find(marker="create-token").click()
+    await user.should_see("Token 't' created")
+    support.browser_copies(user, success=False)
+    user.find(marker="copy-secret").click()
+    await user.should_see("Copying is not available here")
+    assert not user.notify.contains("Token copied")
 
 
 async def test_session_token_is_never_shown(user: User, frontend_state: FakeState) -> None:

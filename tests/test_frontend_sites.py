@@ -25,6 +25,18 @@ async def test_create_site_shows_it_with_its_public_url(user: User, frontend_sta
     assert frontend_state.sites["pensaforma-design"].name == "PensaForma: Design"
 
 
+async def test_copy_url_reports_what_the_browser_did(user: User) -> None:
+    await support.seed_site("Copied")
+    await support.sign_in(user, *support.ADMIN)
+    await user.should_see("Copied")
+    support.browser_copies(user, success=True)
+    user.find(marker="copy-url").click()
+    await user.should_see("URL copied")
+    support.browser_copies(user, success=False)
+    user.find(marker="copy-url").click()
+    await user.should_see("Copying is not available here")
+
+
 async def test_backend_messages_are_shown_as_text(user: User) -> None:
     await support.seed_site("Taken")
     await support.sign_in(user, *support.ADMIN)

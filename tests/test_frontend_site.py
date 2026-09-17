@@ -117,11 +117,67 @@ async def test_download_hands_over_the_bytes(user: User) -> None:
     assert hashlib.sha256(response.content).hexdigest() == hashlib.sha256(content).hexdigest()
 
 
-async def test_download_without_a_session_is_refused(user: User) -> None:
+async def test_download_without_a_session_is_a_401_not_a_redirect(user: User) -> None:
+    """A download is a fetch: a redirect to the sign-in page would be saved under the file's name."""
     slug = await support.seed_site("Locked", {"a.txt": b"a"})
     response = await user.http_client.get(f"/download/{slug}/a.txt")
-    assert response.status_code == 303  # the middleware sends the browser to sign in
-    assert response.headers["location"].startswith("/login?next=")
+    assert response.status_code == 401
+    assert response.json() == {"error": {"code": "unauthorized", "message": "sign in to download files"}}
+
+
+async def test_download_streams_with_the_backend_headers(user: User) -> None:
+    content = b"x" * 3000
+    slug = await support.seed_site("Sized", {"big.txt": content})
+    await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
+    await user.should_see("big.txt")
+    user.find(marker="download-file").click()
+    response = await user.download.next()
+    assert response.status_code == 200
+    assert response.headers["content-length"] == "3000"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.content == content
+
+
+async def test_download_with_an_ended_session_is_reported_on_the_page(
+    user: User, frontend_state: FakeState
+) -> None:
+    slug = await support.seed_site("Gone", {"a.txt": b"a"})
+    await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
+    await user.should_see("a.txt")
+    (secret,) = support.session_secrets(frontend_state, support.ADMIN[0])
+    frontend_state.revoke(frontend_state.secrets[secret])
+    user.find(marker="download-file").click()
+    await user.should_see("Your session has ended")
+    await user.should_see(marker="sign-in")
+    assert user.download.http_responses == []  # nothing was fetched, so nothing was saved
+
+
+async def test_missing_file_download_answers_the_contract_body(user: User) -> None:
+    slug = await support.seed_site("Sparse", {"a.txt": b"a"})
+    await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
+    response = await user.http_client.get(f"/download/{slug}/missing.txt")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"
+
+
+async def test_a_session_ended_partway_through_a_batch(user: User, frontend_state: FakeState) -> None:
+    slug = await support.seed_site("Cut")
+    await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
+    uploader = await _uploader(user)
+    (secret,) = support.session_secrets(frontend_state, support.ADMIN[0])
+    frontend_state.revoke(frontend_state.secrets[secret])
+    before = len(frontend_state.requests)
+    await uploader.handle_uploads([_upload("a.txt", b"a"), _upload("b.txt", b"b"), _upload("c.txt", b"c")])
+    await user.should_see("Your session has ended")
+    await user.should_see(marker="sign-in")
+    # the loop stopped at the first refusal; the other two files were never sent
+    assert [r.route for r in frontend_state.requests[before:]] == ["upload_file"]
+    assert frontend_state.sites[slug].files == {}
+    # the same tab, signed in again, still shows what happened to each file
+    await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
+    await user.should_see("Last upload in this tab")
+    assert len(user.find(marker="upload-result").elements) == 3
+    await user.should_see("not sent: the session has ended")
 
 
 async def test_replace_a_file_in_place(user: User) -> None:

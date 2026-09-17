@@ -12,6 +12,7 @@ element and no per-user value is created at import time.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
@@ -98,6 +99,52 @@ def when(moment: datetime | None) -> str:
     return moment.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
-def copy_to_clipboard(text: str, what: str) -> None:
-    ui.clipboard.write(text)
-    ui.notify(f"{what} copied", type="positive")
+# `navigator.clipboard` exists in secure contexts only, and paper-boxing runs over plain HTTP on
+# the LAN; the fallback is the older `document.execCommand("copy")` on a hidden, selected textarea.
+# The code returns whether the text was copied; `return` and `await` make NiceGUI run it as an
+# async function.
+_COPY_JS = """
+const text = {text};
+try {{
+    if (navigator.clipboard && window.isSecureContext) {{
+        await navigator.clipboard.writeText(text);
+        return true;
+    }}
+}} catch (e) {{}}
+try {{
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "0";
+    area.style.left = "0";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(area);
+    return copied === true;
+}} catch (e) {{
+    return false;
+}}
+"""
+
+
+async def copy_to_clipboard(text: str, what: str) -> None:
+    """Copy `text` in the browser, and say so only when the browser reported success."""
+    try:
+        copied = await ui.run_javascript(_COPY_JS.format(text=json.dumps(text)), timeout=3.0)
+    except TimeoutError:
+        copied = False
+    if copied is True:
+        ui.notify(f"{what} copied", type="positive")
+    else:
+        ui.notify(
+            f"Copying is not available here; select the {what.lower()} and copy it yourself.", type="warning"
+        )
+
+
+def select_on_focus(field: ui.input) -> ui.input:
+    """Make a readonly field select its whole contents when it gains focus, so a click and a copy suffice."""
+    return field.on("focus", js_handler="(e) => e.target.select()")

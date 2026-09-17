@@ -19,7 +19,7 @@ from nicegui.observables import ObservableDict
 from nicegui.persistence import PersistentDict
 
 import paper_boxing.frontend as frontend_package
-from paper_boxing.frontend import auth
+from paper_boxing.frontend import auth, paths
 
 
 def _frontend_modules() -> list[str]:
@@ -58,6 +58,34 @@ def test_nothing_per_user_is_kept_at_module_level() -> None:
         module = importlib.import_module(name)
         state = [k for k, v in vars(module).items() if not k.startswith("__") and isinstance(v, forbidden)]
         assert not state, f"{name} keeps state at module level: {state}"
+
+
+def test_the_shared_client_has_a_short_connect_and_a_long_transfer_timeout() -> None:
+    from paper_boxing.frontend import backend
+    from paper_boxing.frontend.config import FrontendConfig
+
+    cfg = FrontendConfig(
+        host="127.0.0.1",
+        port=1,
+        backend_url="http://backend",
+        public_sites_url="http://sites",
+        storage_secret="s",
+    )
+    http = backend.default_http_client(cfg)
+    assert http.timeout == backend.TIMEOUT
+    assert backend.TIMEOUT.connect == 10.0
+    assert backend.TIMEOUT.read == 600.0 and backend.TIMEOUT.write == 600.0
+
+
+def test_the_paths_table_drives_the_middleware_and_the_download_link() -> None:
+    assert paths.is_fetch(paths.download_url("x", "a.txt"))
+    assert not paths.is_public(paths.download_url("x", "a.txt"))
+    assert (
+        paths.download_url("my site", "docs/na\u00efve page.html")
+        == "/download/my%20site/docs/na%C3%AFve%20page.html"
+    )
+    assert paths.DOWNLOAD_ROUTE.startswith(paths.DOWNLOAD_PREFIX + "/")
+    assert paths.LOGIN_PATH == auth.LOGIN_PATH
 
 
 def test_public_paths_are_exactly_the_ones_needing_no_session() -> None:

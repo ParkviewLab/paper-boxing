@@ -86,7 +86,7 @@ async def page() -> RedirectResponse | None:
                         ui.link(url, url, new_tab=True).classes("font-mono text-sm")
                         ui.button(
                             icon="content_copy", on_click=lambda: layout.copy_to_clipboard(url, "URL")
-                        ).props("flat dense round").tooltip("Copy the address")
+                        ).props("flat dense round").tooltip("Copy the address").mark("copy-url")
                     ui.label(
                         f"{site.file_count} files, {layout.human_bytes(site.bytes)}, "
                         f"created {layout.when(site.created_at)}"

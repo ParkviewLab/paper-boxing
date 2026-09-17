@@ -15,32 +15,35 @@ app lifespan. `install()` registers everything on NiceGUI's app and is what
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import AsyncExitStack
 from urllib.parse import quote
 
 import httpx
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response, StreamingResponse
 from nicegui import app, ui
 
-from paper_boxing.common.client import BackendError
+from paper_boxing.common.client import BackendError, BackendUnreachable
+from paper_boxing.common.errors import error_response
 from paper_boxing.common.naming import path_name
-from paper_boxing.common.schema import ErrorBody, ErrorCode, ErrorDetail, Health
-from paper_boxing.frontend import auth, backend, pages
-from paper_boxing.frontend.config import NAME, VERSION, FrontendConfig, load_config
+from paper_boxing.common.schema import ErrorCode, Health
+from paper_boxing.frontend import auth, backend, layout, pages, paths
+from paper_boxing.frontend.config import NAME, VERSION, FrontendConfig
 
 _started_at = time.time()
 
-DOWNLOAD_ROUTE = "/download/{slug}/{path:path}"
 
-
-def _error(status: int, code: ErrorCode, message: str) -> JSONResponse:
-    body = ErrorBody(error=ErrorDetail(code=code, message=message))
-    return JSONResponse(body.model_dump(mode="json"), status_code=status)
+def _error_code(error: BackendError) -> ErrorCode:
+    return (
+        ErrorCode(error.code)
+        if error.code in {code.value for code in ErrorCode}
+        else ErrorCode.INTERNAL_ERROR
+    )
 
 
 def _register_routes() -> None:
     """The ops endpoints and the download route; idempotent, so a re-install after a test reset is clean."""
-    for path in ("/health", "/admin/version", DOWNLOAD_ROUTE):
+    for path in ("/health", "/admin/version", paths.DOWNLOAD_ROUTE):
         app.remove_route(path)
 
     @app.get("/health", response_model=Health, tags=["health"])
@@ -49,7 +52,7 @@ def _register_routes() -> None:
 
     @app.get("/admin/version", tags=["admin"])
     async def admin_version() -> dict[str, str]:
-        cfg = load_config()
+        cfg = backend.config()
         return {
             "name": NAME,
             "version": VERSION,
@@ -57,32 +60,44 @@ def _register_routes() -> None:
             "public_sites_url": cfg.public_sites_url,
         }
 
-    @app.get(DOWNLOAD_ROUTE, tags=["files"])
+    @app.get(paths.DOWNLOAD_ROUTE, tags=["files"])
     async def download(slug: str, path: str) -> Response:
-        """Fetch one file from the backend with the caller's session and hand it to the browser as an attachment.
+        """Stream one file from the backend with the caller's session, to the browser as an attachment.
 
         The browser never holds the session token, so it cannot fetch from the
-        backend itself; this route does it on its behalf. It answers errors in
-        the contract's shape.
+        backend itself; this route does it on its behalf, chunk by chunk, so a
+        large file is neither held whole in memory nor hashed on the event loop.
+        Errors come back in the contract's shape.
         """
         token = auth.token()
         if token is None:
-            return _error(401, ErrorCode.UNAUTHORIZED, "sign in to download files")
+            return error_response(401, ErrorCode.UNAUTHORIZED, "sign in to download files")
+        stack = AsyncExitStack()
         try:
-            file = await backend.client().download_file(token, slug, path)
+            file = await stack.enter_async_context(backend.client().stream_file(token, slug, path))
+        except BackendUnreachable as e:
+            await stack.aclose()
+            return error_response(503, ErrorCode.BACKEND_UNREACHABLE, layout.error_text(e))
         except BackendError as e:
-            code = ErrorCode(e.code) if e.code in ErrorCode.__members__.values() else ErrorCode.INTERNAL_ERROR
-            return _error(e.status, code, e.message)
-        name = path_name(file.path)
+            await stack.aclose()
+            return error_response(e.status, _error_code(e), e.message)
+
+        async def body() -> AsyncIterator[bytes]:
+            try:
+                async for chunk in file.chunks:
+                    yield chunk
+            finally:
+                await stack.aclose()
+
+        name = path_name(path)
         ascii_name = name.encode("ascii", "replace").decode("ascii").replace('"', "'")
-        return Response(
-            content=file.content,
-            media_type=file.content_type,
-            headers={
-                "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}",
-                "Cache-Control": "no-store",
-            },
-        )
+        headers = {
+            "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}",
+            "Cache-Control": "no-store",
+        }
+        if file.content_length is not None:
+            headers["Content-Length"] = str(file.content_length)
+        return StreamingResponse(body(), media_type=file.content_type, headers=headers)
 
 
 def install(
