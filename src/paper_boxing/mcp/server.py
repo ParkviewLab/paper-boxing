@@ -48,6 +48,7 @@ from starlette.routing import Route
 from paper_boxing.common.client import BackendClient
 from paper_boxing.common.routes import VIA_MCP
 from paper_boxing.common.schema import ErrorCode, Health
+from paper_boxing.common.scopes import Scope
 from paper_boxing.mcp import auth, tools
 from paper_boxing.mcp.config import NAME, VERSION, McpConfig, load_config
 
@@ -116,7 +117,12 @@ def _confirmed() -> auth.Confirmed:
 
 
 @mcp.list_tools()
-async def list_tools() -> list[types.Tool]:
+async def list_tools(request: types.ListToolsRequest) -> list[types.Tool]:
+    # The SDK refreshes its own schema cache by calling this handler with None in place of a
+    # request; that cache serves input and output validation, not authorization, so it gets the
+    # whole catalogue. A client's tools/list gets the tools its confirmed token's scope allows.
+    if request is None:
+        return tools.list_tools(SPECS, Scope.REMOVE_DESTRUCTIVE)
     try:
         confirmed = _confirmed()
     except tools.ToolError as e:

@@ -229,6 +229,14 @@ def test_every_tool_output_validates_against_its_output_schema(
     assert slug not in fake_state.sites
 
 
+async def test_the_sdk_schema_cache_refresh_sees_the_whole_catalogue(mcp_client: TestClient) -> None:
+    """The SDK refreshes its validation cache by calling the handler with None; it must see every tool,
+    whatever scope listed last, so that a call's output is validated against its outputSchema."""
+    from paper_boxing.mcp import server
+
+    assert [t.name for t in await server.list_tools(None)] == list(TOOL_NAMES)  # type: ignore[arg-type]
+
+
 # ---------------------------------------------------------------------------
 # The size cap
 
