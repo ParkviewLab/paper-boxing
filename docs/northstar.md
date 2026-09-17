@@ -52,7 +52,7 @@ The same axioms support all the intents, from different angles.
 
 3. **Addresses are permanent.** A site's slug and the site server's port never change; links placed in the wiki keep working for as long as the site exists.
 
-4. **Intent before destruction.** Overwriting needs `overwrite`, deleting a non-empty folder needs `recursive`, deleting a site needs its name typed back. A write is atomic, so a failure leaves the old file whole.
+4. **Intent before destruction.** Overwriting needs `overwrite`, deleting a non-empty folder needs `recursive`, deleting a site needs its slug typed back. A write is atomic, so a failure leaves the old file whole.
 
 5. **Say what the threat model is.** Plain HTTP on a private LAN is the accepted deployment, and every document says so plainly rather than implying a security that is not there.
 

@@ -14,7 +14,7 @@ paper-boxing is a small local site manager for a home lab: one person, a private
 
 What it is for, in Gary's words: "a tool we use in the early part of designing and spec'ing out big new projects". Early design and specification produce documents (designed HTML pages, visual explorations, specifications, often with scripts) before a project has a repository or a release, and while they are still changing daily. Those documents need a place to live that is private, on the LAN, instant to update, and writable by agents as well as by a person. Once a project has a public repository and ships releases, its documentation moves to that repository's GitHub Pages site under the handbook's `docs-site.md`; paper-boxing is where a project's documents live before that point, and where anything private lives permanently.
 
-- A person signs in to a simple web UI. There they create and delete named sites and upload, list, download, replace and delete each site's files, including whole folder trees.
+- A person signs in to a simple web UI. There they create and delete named sites and upload, list, download, replace and delete each site's files, one file at a time; the page may let a person pick several files at once and upload them in turn, a convenience of the page and not a capability of the server.
 - Each site is a folder of static files, served unchanged over HTTP at a stable address such as `http://<host>:35841/<site>/`.
 - An agent holding an access token does the same work through paper-boxing's MCP server.
 
@@ -84,7 +84,7 @@ paper-boxing-develop/
 - The MCP subpackage follows the handbook's module layout from `mcp-server-conventions.md`: `config.py` (a pure leaf), `__main__.py`, `server.py`, `tools.py`, `schema.py`, and `permissions.py`. It serves Streamable-HTTP only, with no stdio transport, because it runs in the stack on the home-lab host for every machine on the LAN. The backend is a plain FastAPI service with the same `config.py` discipline.
 - Docker:
   - One root `Dockerfile` in the handbook shape. A shared stage holds the uv python3.13 slim base and the dependency resolution. Three targets, `backend`, `frontend` and `mcp`, each run `uv sync --locked --no-dev --extra <component>` and set their own `EXPOSE`, `HEALTHCHECK` against `/health`, and `CMD ["uv", "run", "python", "-m", "paper_boxing.<component>"]`. Only `backend` declares `VOLUME ["/data"]`.
-  - `.dockerignore` as in bronze-scribing.
+  - `.dockerignore` excludes the git metadata, the virtual environment, caches, tests, docs and the compose files, so a build context holds only what the Dockerfile copies.
 - `docker-compose.yml` has four services (backend, frontend, MCP server, site server) and one named volume, as a copy-and-edit example in the handbook's compose shape, with settings read from `${…}` variables so the same file works in Portainer.
 - The nginx configuration is inline in the compose file, as a Compose `configs:` entry with `content:` mounted at `/etc/nginx/conf.d/default.conf`. That keeps the stack a single file that can be pasted into Portainer's web editor. If the host's Portainer rejects inline configs, fall back to a bind-mounted file and document that.
 - `release.yml` builds the three targets in a matrix into `ghcr.io/parkviewlab/paper-boxing-{backend,frontend,mcp}`, each with the tags version, major.minor and `latest`, for amd64 and arm64.
@@ -107,7 +107,7 @@ Sites:
 Files and folders:
 
 - `GET /sites/{slug}/files?path=` lists one folder: name, type, bytes, modification time and sha256.
-- `PUT /sites/{slug}/files/{path}?overwrite=false` uploads one file as a raw body, creating missing parent folders on the way. An existing file without `overwrite=true` answers 409. The response carries path, bytes and sha256.
+- `PUT /sites/{slug}/files/{path}?overwrite=false` uploads one file as a raw body, creating missing parent folders on the way. An existing file without `overwrite=true` answers 409. The response is `UploadResult {path, bytes, sha256, replaced}`: 201 with `replaced: false` for a new file, 200 with `replaced: true` for a replacement.
 - `GET /sites/{slug}/files/{path}` downloads a file as an attachment.
 - `DELETE /sites/{slug}/files/{path}` deletes a file.
 - `DELETE /sites/{slug}/folders/{path}?recursive=false` deletes a folder. A non-empty folder without `recursive=true` answers 409.
@@ -116,8 +116,8 @@ File operations are single-file only, decided by Gary on 2026-09-17: there is no
 
 Access tokens and users:
 
-- `GET /tokens`, `POST /tokens {name, scope}` (the token is shown once), `DELETE /tokens/{id}`.
-- `GET /tokens/self` returns the calling token's id, name, type and scope. The MCP server uses it to confirm each agent token (section 4a).
+- `GET /tokens` lists every user's agent tokens with their owner, and any user may revoke any of them (equal rights); `POST /tokens {name, scope}` (the token is shown once); `DELETE /tokens/{id}`.
+- `GET /tokens/self` returns the calling token's id, name, type, scope, username and expires_at (null for an agent token, set for a session). The MCP server uses it to confirm each agent token (section 4a).
 - `GET /users`, `POST /users`, `DELETE /users/{id}` (409 for the last account), and `POST /users/self/password {current, new}`.
 
 The handbook's standard endpoints: `GET /health` returning `{ok, version, uptime_seconds}`, `GET /admin/version`, and `GET /docs`.
@@ -130,7 +130,7 @@ Authentication model (the handbook knows only one shared static token; this mode
   - A signed-in user adds and removes accounts. The last remaining account cannot be deleted. There is no self-registration.
   - Each user changes their own password, which requires the current one. The change signs out that user's other sessions.
   - Each agent token belongs to the user who created it, and the logs record which user or token acted.
-  - Passwords are stored only as argon2id hashes (`argon2-cffi`, per-hash random salt, cost settings in the encoded string, re-hashed at sign-in when the settings have been raised). A password is never logged, stored in plain text, or returned. Tokens, being 32 random bytes, are stored as SHA-256 hashes.
+  - Passwords are stored only as argon2id hashes (`argon2-cffi`, per-hash random salt, cost settings in the encoded string, re-hashed at sign-in when the settings have been raised). A password is never logged, stored in plain text, or returned. Tokens are 32 random bytes, presented as `pb_` followed by 43 URL-safe base64 characters, and stored as SHA-256 hashes.
   - No lockout after failed sign-ins, and sign-in runs over plain HTTP; both follow from the private-LAN threat model and are stated in the README.
 - Sessions:
   - A login issues a random session token (32 bytes). Only its SHA-256 is stored.
@@ -139,7 +139,8 @@ Authentication model (the handbook knows only one shared static token; this mode
   - A signed-in user creates access tokens, and each token has a scope from the handbook's tiers: `read_only` (list and download), `read_write` (adds create site and upload), and `remove_destructive` (adds every delete).
   - Tokens are stored as SHA-256 hashes, can be revoked, and record when they were last used.
   - Every token has a type: `session` (issued at login, for the UI) or `agent` (created by a user, for agents). Only `agent` tokens are accepted through the MCP server.
-- Every REST route requires `Authorization: Bearer <session or access token>`, except `/health` and `/admin/version`. Comparisons are constant-time.
+- Every REST route requires `Authorization: Bearer <session or access token>`, except `/health`, `/admin/version` and `/docs`. Comparisons are constant-time.
+- Managing accounts and tokens is a person's act: `POST /auth/logout`, the token routes and the user routes take a session token only, and an agent token gets `403 session_required`. A session token acts with its user's full rights, `remove_destructive`.
 - The backend enforces every scope itself, whichever client calls. An agent token may also call the REST API directly, which is the route for files larger than the MCP cap.
 - A request carrying `X-Paper-Boxing-Via: mcp` is logged as coming through the MCP server, under the token that acted.
 - The README states plainly that on a private LAN over plain HTTP, tokens and passwords travel unencrypted. That is the accepted deployment model, and the README answers the handbook's "Auth model" warning with it.
@@ -187,7 +188,7 @@ Configuration: `HOST`, `PORT`, `PAPER_BOXING_BACKEND_URL`, `PAPER_BOXING_PUBLIC_
 Pages:
 
 - `/login`.
-- `/`, the sites list: create a site, copy its URL, open it, and delete it after typing its name.
+- `/`, the sites list: create a site, copy its URL, open it, and delete it after typing its slug, which the page shows.
 - `/sites/{slug}`, one site:
   - browse folders;
   - upload files, with an overwrite choice: a person may pick several files at once and the page uploads them in turn against the single-file route, a convenience of the page and not a capability of the server;
@@ -222,7 +223,7 @@ It mounts the data volume read-only, with `root` pointing at its `sites/` tree; 
 
 ## 7. Tests
 
-Handbook conventions: pytest with `asyncio_mode = "auto"`; markers `network`, `integration`; CI runs `-m "not network and not integration"`, and a separate job runs `integration`; one session-scoped client, since the session manager refuses to start twice. Reference files are ebony-enriching's `tests/{conftest,_mcp_helpers,test_transport_security,test_parallel}.py` and bronze-scribing's `tests/{test_endpoints_integration,test_tool_surface}.py`.
+Handbook conventions: pytest with `asyncio_mode = "auto"`; markers `network`, `integration`; CI runs `-m "not network and not integration"`, and a separate job runs `integration`; one session-scoped client, since the session manager refuses to start twice. Reference files are ebony-enriching's `tests/{conftest,_mcp_helpers,test_server,test_transport_security,test_parallel}.py`.
 
 Backend:
 
@@ -232,7 +233,7 @@ Backend:
 - scope enforcement per tool and per route;
 - tokens and passwords are never stored in plain text;
 - session expiry;
-- `GET /tokens/self` returns the right type and scope, and refuses revoked and expired tokens.
+- `GET /tokens/self` returns the right type and scope, and refuses revoked tokens and expired sessions.
 
 MCP server (against a fake backend implementing the contract, and in the integration job against the real one):
 
@@ -294,15 +295,7 @@ Visual checks follow the handbook's rule: run the app and take screenshots befor
 
 ## 9. Work plan and workers
 
-These steps belong to the coordinator (this session). All but branch protection were done on 2026-09-17, at Gary's go-ahead ("let's do it"): the repo is public with `develop` as default, squash-only with `PR_TITLE` and delete-on-merge, `main` protected against force push and deletion, the org `ANTHROPIC_API_KEY` visible to all repos, and the contained layout at `~/dev/github/ParkviewLab/paper-boxing/`. The initial commit is `89ebea7` (README stub, `.gitignore`, `LICENSE-MIT`, `LICENSE-APACHE`, the last two copied from deco-assaying). Branch protection on `develop` follows the scaffold's merge, once the required checks exist.
-
-1. Create the public repo `ParkviewLab/paper-boxing`.
-2. Make the initial commit, which the layout procedure needs before `develop` can exist: `README.md` stub, `.gitignore`, `LICENSE-MIT`, `LICENSE-APACHE`.
-3. Create `develop` and make it the default branch.
-4. Apply the squash-only settings.
-5. Set up the contained local layout.
-6. Once the checks exist, set branch protection, and confirm the org's `ANTHROPIC_API_KEY` secret reaches the repo.
-7. No PyPI trusted publisher: images only.
+The coordinator's setup of the repository is done (the public repo with `develop` as its default branch, squash-only merges, the protection of `main`, the initial commit `89ebea7`); branch protection on `develop` follows the scaffold's merge, once the required checks exist.
 
 Pull requests into `develop`, each from its own prefixed worktree and each merged by Gary:
 

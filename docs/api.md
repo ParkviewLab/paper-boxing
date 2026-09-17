@@ -24,7 +24,7 @@ Every error response has the body `{"error": {"code": "<code>", "message": "<tex
 |---|---|
 | 400 | `invalid_name` (no slug can be derived), `invalid_path`, `confirm_mismatch`, `bad_request` |
 | 401 | `unauthorized` (missing, unknown, revoked or expired token), `invalid_credentials` (sign-in) |
-| 403 | `forbidden` (the token's scope is too low), `session_required` (an agent token on a session-only route), `wrong_password` |
+| 403 | `forbidden` (the token's scope is too low), `session_required` (an agent token on a session-only route), `wrong_password`; `wrong_token_type` is the MCP server's own, for a session token presented to it |
 | 404 | `not_found` |
 | 405 | `method_not_allowed` |
 | 409 | `site_exists`, `file_exists`, `folder_not_empty`, `not_a_file`, `not_a_folder`, `user_exists`, `last_user` |
@@ -43,7 +43,9 @@ Each route has one access rule. `public`: no token. `any_token`: any valid token
 
 A site's slug is derived from its display name: accents stripped, lowercased, every run of characters other than `a-z0-9` becomes one hyphen, leading and trailing hyphens go, and the result is cut to 63 characters. A name from which nothing usable remains is `400 invalid_name`; a slug already taken is `409 site_exists`. The slug never changes afterwards.
 
-A path inside a site is relative and `/`-separated; the canonical form has no leading, trailing or doubled slashes. Rejected as `400 invalid_path`: `.` and `..` segments, backslashes, control characters, a segment over 255 bytes, a path over 1024 characters, and (for a file operation) the empty path. The backend additionally resolves every path on disk and refuses one that escapes the site, symlinks included. Folders come into being with the first file below them and stay until deleted; there is no route that creates an empty folder, since an empty folder has no meaning in a static site.
+A path inside a site is relative and `/`-separated; the canonical form has no leading, trailing or doubled slashes. Leading and trailing slashes are stripped; an empty segment (a doubled slash) is `400 invalid_path`. Rejected as `400 invalid_path`: `.` and `..` segments, backslashes, control characters, a segment over 255 bytes, a path over 1024 characters, and (for a file operation) the empty path. The backend additionally resolves every path on disk and refuses one that escapes the site, symlinks included. Folders come into being with the first file below them and stay until deleted; there is no route that creates an empty folder, since an empty folder has no meaning in a static site.
+
+In a URL, `{path}` is a multi-segment parameter: its slashes are literal separators, every other reserved or non-ASCII character is percent-encoded, and the server validates the decoded path, so `%2F` arrives as a separator and cannot name a file containing a slash. Responses carry the decoded canonical path.
 
 ## Routes
 
@@ -54,15 +56,15 @@ A path inside a site is relative and `/`-separated; the canonical form has no le
 | `GET /api/v1/sites` | read_only | 200 `SiteList {sites: [Site]}`, sorted by slug. |
 | `POST /api/v1/sites` | read_write | Body `CreateSiteRequest {name}`. 201 `Site`; 400 `invalid_name`; 409 `site_exists`. |
 | `GET /api/v1/sites/{slug}` | read_only | 200 `Site`; 404. |
-| `DELETE /api/v1/sites/{slug}?confirm=` | remove_destructive | Deletes the site and every file in it. 204; 400 `confirm_mismatch` unless `confirm` equals the slug; 404. |
-| `GET /api/v1/sites/{slug}/files?path=` | read_only | Lists one folder (`path` empty or absent is the root). 200 `FileListing {site, path, entries: [FileEntry]}`, folders first then files, each by name; 404 for a missing site or folder; 409 `not_a_folder` when `path` is a file. |
-| `PUT /api/v1/sites/{slug}/files/{path}?overwrite=false` | read_write | The raw request body is the file; missing parent folders are created. 201 `UploadResult {path, bytes, sha256, replaced: false}` for a new file, 200 with `replaced: true` when `overwrite=true` replaced one; 409 `file_exists` for an existing file without `overwrite=true`; 409 `not_a_file` when a folder is at the path; 409 `not_a_folder` when a parent segment is a file; 413 `payload_too_large` above the cap; 400 `invalid_path`; 404 for a missing site. A replacement is atomic: a failure leaves the old file whole. |
+| `DELETE /api/v1/sites/{slug}?confirm=` | remove_destructive | Deletes the site and every file in it. 204; 400 `confirm_mismatch` unless `confirm` equals the slug; 404. An unknown slug is 404 before a wrong `confirm` is 400. |
+| `GET /api/v1/sites/{slug}/files?path=` | read_only | Lists one folder (`path` empty or absent is the root). 200 `FileListing {site, path, entries: [FileEntry]}`, folders first then files, each by name; for a folder entry `bytes` is the recursive total, `modified_at` the newest time below it and `sha256` null; 404 for a missing site or folder; 409 `not_a_folder` when `path` is a file. |
+| `PUT /api/v1/sites/{slug}/files/{path}?overwrite=false` | read_write | The raw request body is the file; missing parent folders are created. 201 `UploadResult {path, bytes, sha256, replaced: false}` for a new file, 200 with `replaced: true` when `overwrite=true` replaced one; 409 `file_exists` for an existing file without `overwrite=true`; 409 `not_a_file` when a folder is at the path; 409 `not_a_folder` when a parent segment is a file; 413 `payload_too_large` above the cap; 400 `invalid_path`; 404 for a missing site. The checks run in this order: the site (404), the path (400), the size cap (413), then the conflicts (409). `overwrite=true` where no file exists succeeds as 201 with `replaced: false`; a zero-byte body is a valid upload. A replacement is atomic: a failure leaves the old file whole. |
 | `GET /api/v1/sites/{slug}/files/{path}` | read_only | 200 with the bytes, `Content-Type` guessed from the extension (`application/octet-stream` otherwise) and `Content-Disposition: attachment; filename=...`; 404; 409 `not_a_file` for a folder. |
 | `DELETE /api/v1/sites/{slug}/files/{path}` | remove_destructive | 204; 404; 409 `not_a_file` for a folder. |
 | `DELETE /api/v1/sites/{slug}/folders/{path}?recursive=false` | remove_destructive | 204; 409 `folder_not_empty` for a non-empty folder without `recursive=true`; 404; 409 `not_a_folder` for a file; 400 `invalid_path` for the site root (delete the site instead). |
 | `GET /api/v1/tokens` | session | 200 `TokenList {tokens: [Token]}`: every live agent token of every user, with its owner's `username`, oldest first. Sessions are not listed. |
 | `POST /api/v1/tokens` | session | Body `CreateTokenRequest {name, scope}`. 201 `TokenCreated {token: Token, secret}`; the secret is returned here and never again. The token belongs to the calling user. |
-| `GET /api/v1/tokens/self` | any_token | 200 `TokenSelf {id, name, type, scope, username, expires_at}` for the calling token; 401 for an unknown, revoked or expired one. The MCP server calls this on every request. |
+| `GET /api/v1/tokens/self` | any_token | 200 `TokenSelf {id, name, type, scope, username, expires_at}` for the calling token, `expires_at` being null for an agent token and set for a session; 401 for an unknown, revoked or expired one. The MCP server calls this on every request. |
 | `DELETE /api/v1/tokens/{token_id}` | session | Revokes an agent token. 204; 404 for an unknown, already revoked, or session token. Any user may revoke any agent token: accounts have equal rights. |
 | `GET /api/v1/users` | session | 200 `UserList {users: [User]}`, by username. |
 | `POST /api/v1/users` | session | Body `CreateUserRequest {username, password}` (username `[A-Za-z0-9][A-Za-z0-9._-]*`, at most 64; password at least 8 characters). 201 `User`; 409 `user_exists`; 422. |
@@ -73,7 +75,7 @@ File operations are single-file only (`design.md`, section 4): there is no batch
 
 ### Tokens and sessions
 
-A session token is issued by `login` and expires after a sliding period (`PAPER_BOXING_SESSION_DAYS`, default 14): every authenticated request moves the expiry forward. An agent token does not expire; it lives until revoked, or until its owner's account is removed. A password change signs out the user's other sessions. Both kinds are random 32-byte secrets, presented as `pb_` followed by 43 URL-safe base64 characters, stored only as sha256 hashes, and compared in constant time. Every token records when it was last used.
+A session token is issued by `login` and expires after a sliding period (`PAPER_BOXING_SESSION_DAYS`, default 14): every authenticated request moves the expiry forward. An agent token does not expire; it lives until revoked, or until its owner's account is removed, and its `expires_at` is null wherever it is shown, whereas a session's is set. A password change signs out the user's other sessions. Both kinds are random 32-byte secrets, presented as `pb_` followed by 43 URL-safe base64 characters, stored only as sha256 hashes, and compared in constant time. Every token records when it was last used.
 
 ## Ops endpoints
 
@@ -95,6 +97,14 @@ The MCP server exposes eight tools, each with a title, annotations, an `inputSch
 | `delete_site` | remove_destructive | `{site, confirm}` | `{slug, deleted: true}` |
 
 `upload_file` and `download_file` carry files up to `PAPER_BOXING_MCP_MAX_FILE_MB` (default 8 MiB, decoded); their descriptions tell the agent that a larger file goes through `PUT` and `GET /api/v1/sites/{site}/files/{path}` with the same token.
+
+The MCP server's transport rules:
+
+- `/mcp` accepts `POST` only; `GET` and `DELETE` answer 405.
+- `/sse` answers 405 on every method, with a body naming `/mcp`.
+- A request whose `Host` is outside `PAPER_BOXING_MCP_ALLOWED_HOSTS` gets 421.
+- A request whose `Origin` is outside `PAPER_BOXING_MCP_ALLOWED_ORIGINS` gets 403; a request with no Origin passes.
+- CORS is limited to the same origin allowlist.
 
 Before any tool runs, and on every request, the MCP server confirms the request's bearer token with `GET /api/v1/tokens/self`, keeps nothing between requests, and accepts only tokens of type `agent`; it then forwards the token to the backend with `X-Paper-Boxing-Via: mcp`, so the backend enforces the scope again and logs the call under that token. Inside a tool handler the low-level SDK exposes the HTTP request as `mcp.request_context.request`; the bearer is its `authorization` header.
 
