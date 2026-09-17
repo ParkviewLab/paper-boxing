@@ -10,51 +10,57 @@ This northstar is the canonical statement of paper-boxing's purpose. It is here 
 
 ## What it is
 
-paper-boxing is the working space for the early design and specification of big new projects: the place where a project's documents live before it has a repository and a release, and where anything private lives permanently. It is a small site manager for one person's home lab. A site is a folder of static files, served unchanged over plain HTTP on the private LAN at a stable address; a person manages sites and files in a web UI, an agent does the same through an MCP server, and one backend does the writing for both. It runs as four containers: the backend, the frontend, the MCP server, and a stock nginx that serves the sites read-only.
+paper-boxing is the working space for the early design and specification of large new projects: the place where a project's documents live before its first release, and where anything private lives permanently. It is a small site manager for a home lab. A site is a folder of static files, served unchanged over plain HTTP on the private LAN at a stable address; a person manages sites and files in a web UI, an agent does the same through an MCP server, and one backend does the writing for both. Accounts are several and of equal standing, and an agent acts with a token that a person created for it. It runs as four containers: the backend, the frontend, the MCP server, and a stock nginx that serves the sites read-only.
 
 ## Why it exists
 
-Early design produces documents that change daily: designed HTML pages, visual explorations, specifications, often with scripts. They are made by people and by agents together, and they need a place that is private, on the LAN, instant to update, and writable by both. A wiki is the wrong shape for them, since it rewrites what it stores and cannot hold a designed page as designed; a repository's documentation site is the right shape only once the project has a repository and ships releases, and it is public. Between the first sketch and the first release, and for everything that must stay private, there was nowhere to put them. paper-boxing is that place, and nothing more.
+Early design produces documents that change daily: designed HTML pages, visual explorations, specifications, often with scripts. They are made by people and by agents together, and they need a place that is private, on the LAN, updated at once, and writable by both. A wiki is the wrong shape for them, since it rewrites what it stores and cannot hold a designed page as designed; a repository's documentation site is the right shape only once the project ships releases, and it is public. Between the first sketch and the first release, and for everything that must stay private, these documents need a place of their own. paper-boxing is that place: it stores files and serves them, and does nothing else.
+
+The same shape serves a second use. A repository's documentation site is published from `main` at a release, so before a project's first release there is no published site to read; the site build's output, uploaded as a site, is that site as it will be published, readable on the LAN. Nothing is added for this: the output is a folder of files like any other.
 
 ## Intents
 
 paper-boxing serves three complementary intents: facets of one purpose, presented as peers rather than as one primary and the rest secondary, and mutually reinforcing.
 
-1. **Pages kept exactly as written.** What is uploaded is what is served, byte for byte, at an address that never changes.
+1. **Pages kept exactly as written.** What is uploaded is what is served, byte for byte, at an address that never changes. paper-boxing stores files and serves them; it renders, transforms and versions nothing, and the site server is a separate process that cannot write.
 
-2. **Equally usable by a person and an agent, through one backend.** The UI and the MCP server are two clients of the same API, with the same rules enforced in one place.
+2. **Equally usable by a person and an agent, through one backend.** For sites and files, what a person can do in the UI an agent can do through the tools, with the same outcome, because the UI and the MCP server are two clients of one backend that holds every rule once. Accounts and tokens are a person's act: an agent holds what a person made for it, with the scope the person chose.
 
-3. **Sized for one person's home lab, in Docker.** A private LAN, plain HTTP, one operator, a handful of containers; safeguards against accidents, not measures against strangers.
+3. **Sized for a home lab, in Docker.** One compose stack on one host, four containers, fixed ports, one data volume, one version. The deployment is a private LAN over plain HTTP, stated plainly; the design spends its care on accidents, keeps the stock protections, and adds nothing for the public internet or for users who do not trust one another.
 
 ### 1. Pages kept exactly as written
 
 A site is a folder of files, and the site server is a stock nginx that serves that folder read-only. paper-boxing does not render, transform, template or version what it stores; it holds no history and runs nothing on the server side. A replaced file shows at once, and a site's address, `/<site>/` on the site server's port, is part of every link placed elsewhere and never changes once the site exists. This rules out any feature that would make the served page differ from the uploaded one, and it is why the site server is a separate process that cannot write.
 
+The one page paper-boxing does not store is nginx's own listing of a site or a folder that has no `index.html`: generated by the site server from the folder's contents, not by paper-boxing, so that a few hand-made pages are reachable before an index exists. The same listing at the server's root names every site.
+
 ### 2. Equally usable by a person and an agent, through one backend
 
-The backend is the only writer of files and of the database, and the one implementation of every rule: path containment, overwrite and delete intent, token scopes. The frontend holds no files and no database; the MCP server holds no token store and confirms every request's token with the backend before a tool runs. An agent holds a token a person created, with a scope the person chose, and the backend enforces that scope whichever client calls. What a person can do in the UI, an agent can do through the tools, and neither can do more than the backend allows.
+The backend is the only writer of files and of the database, and the one implementation of every rule about sites, files, accounts and scopes: path containment, overwrite and delete intent, token scopes, and who may manage accounts and tokens. The frontend holds no files and no database of its own; its one store is the per-browser session, disposable, on its own disk. The MCP server holds no token store and keeps three safeguards of its own, taken from the MCP specification: every request's token is confirmed with the backend before a tool runs, only a token the backend issued is accepted, and only a token of the agent type is accepted, so a person's session token is refused. What a person can do with sites and files in the UI, an agent can do through the tools, and neither can do more than the backend allows.
 
-### 3. Sized for one person's home lab, in Docker
+The boundary is a principle, not a gap. Accounts and tokens are a person's act: accounts are several and of equal standing, any of them creates and revokes agent tokens, and an agent holds what a person made for it, with the scope the person chose (read only, read and write, or remove and destructive), which the backend enforces on every call whichever client made it. File operations are single-file, because an empty folder has no meaning in a static site and a site of designed pages is a handful of files. A tool call carries a file up to a cap, since the file travels inside a message, and a larger file goes to the backend's REST API with the same token, which is why the backend's port is published.
 
-Everything runs in one compose stack on one host, on fixed ports, with one data volume and one version for the three images. The threat model is stated rather than hidden: a private LAN over plain HTTP, where tokens travel unencrypted and there is no lockout, because the operator controls the network. The design spends its care on accidents, since they are what happens on a private LAN: a path that escapes a site, a file overwritten by mistake, a site deleted by a slip. It spends nothing on the public internet or on mutually untrusted users, because it is not for them.
+### 3. Sized for a home lab, in Docker
+
+Everything runs in one compose stack on one host, on fixed ports, with one data volume and one version for the three images, which are published as images and nothing else: no package, because it is designed to run in Docker. The threat model is stated rather than hidden: a private LAN over plain HTTP, where tokens travel unencrypted and there is no lockout, because the operator controls the network. The site server has no authentication of its own: anyone who reaches its port reads every site, and its root lists them all. The design spends its care on accidents, since they are what happens on a private LAN: a path that escapes a site, a file overwritten by mistake, a site deleted by a slip. It keeps the stock protections that cost nothing to keep, passwords hashed and tokens stored as digests, the MCP transport's Host and Origin allowlist, and adds nothing for the public internet or for mutually untrusted users, because it is not for them.
 
 ### How the intents reinforce each other
 
-The first intent is possible because of the second: a single writer with fixed rules is what lets the site server be a read-only stock nginx, so nothing can alter a page after it is written. The second is possible because of the third: one operator on a private LAN is what makes a per-user token with a scope, confirmed on every call, an adequate authentication model, without the apparatus a public service would need. And the third holds because of the first: a service that only stores and serves files has few moving parts, which is what keeps it small enough for a home lab. Where the intents meet, the design has chosen the plain option each time: nginx rather than serving from the backend, single-file operations rather than batches, a listing rather than a generated index.
+The first intent is possible because of the second: a single writer with fixed rules is what lets the site server be a read-only stock nginx, so nothing can alter a page after it is written. The second is possible because of the third: a private LAN with a few people who trust one another is what makes a token with a scope, confirmed on every call, an adequate authentication model, without the apparatus a public service would need. And the third holds because of the first: a service that only stores and serves files has few moving parts, which is what keeps it small enough for a home lab. Where two intents meet, the design has chosen the plain option each time. Where the first meets the third: nginx rather than serving from the backend, one more container for a server that cannot write. Where the second meets the third: single-file operations rather than batches, a client-side loop rather than a route that swaps a site in one step. Where the first meets the second: nginx's own listing rather than an index page of paper-boxing's making, so that a folder without an index is readable and paper-boxing still renders nothing.
 
 ## Axioms
 
 The same axioms support all the intents, from different angles.
 
-1. **One writer.** Only the backend touches the files and the database. Every other component is its client, and every rule lives there once.
+1. **One writer.** Only the backend touches the files and the database, and every rule about sites, files, accounts and scopes lives there once. Every other component is its client.
 
-2. **Serve what was stored.** No transformation between upload and response, no history, nothing executed on the server side. If a page looks different served than uploaded, that is a defect.
+2. **Serve what was stored.** No transformation between upload and response, no history, nothing executed on the server side. If a page as served differs from the page as uploaded, that is a defect; the one generated page is the site server's listing of a folder without an `index.html`.
 
-3. **Addresses are permanent.** A site's slug and the site server's port never change; links placed in the wiki keep working for as long as the site exists.
+3. **Addresses are permanent.** A site's slug and the site server's port never change; a link placed elsewhere keeps working for as long as the site exists.
 
-4. **Intent before destruction.** Overwriting needs `overwrite`, deleting a non-empty folder needs `recursive`, deleting a site needs its slug typed back. A write is atomic, so a failure leaves the old file whole.
+4. **Intent before destruction.** Overwriting needs `overwrite`, deleting a non-empty folder needs `recursive`, deleting a site needs its slug repeated as confirmation. A write is atomic, so a failure leaves the old file whole.
 
-5. **Say what the threat model is.** Plain HTTP on a private LAN is the accepted deployment, and every document says so plainly rather than implying a security that is not there.
+5. **Say what the threat model is.** Plain HTTP on a private LAN, with a site server that anyone on it can read, is the accepted deployment, and every document says so plainly rather than implying a security that is not there.
 
 6. **Prefer the stock part.** A stock nginx, a stock compose stack, the handbook's shapes for the package and the MCP server; paper-boxing adds code only where no stock part does the job.
 
@@ -64,16 +70,16 @@ When making a decision, these are the questions to keep answering:
 
 - Does the served page remain byte-identical to the uploaded file, at the same address?
 - Is the rule enforced in the backend, once, for the UI and the MCP server alike?
-- Can a person do it in the UI, and an agent through a tool, with the same outcome?
-- Does it fit one host, one compose stack, one operator on a private LAN?
-- Is the safeguard against an accident, and is it honest about not being a safeguard against a stranger?
+- For sites and files, can a person do it in the UI and an agent through a tool, with the same outcome; and where they differ, is the difference a person's act?
+- Does it fit one host, one compose stack, a private LAN?
+- Is the safeguard against an accident, and is it stated plainly that it is not a safeguard against a stranger?
 
 ## What paper-boxing is not
 
-- **Not a wiki.** BookStack stays the wiki; its pages link to the sites paper-boxing serves. paper-boxing holds files, not articles.
-- **Not a CMS or a build system.** It renders nothing, builds nothing and runs nothing on the server side.
+- **Not a wiki.** The wiki of the home lab this was built for (BookStack) stays the wiki; its pages link to the sites paper-boxing serves. paper-boxing holds files, not articles.
+- **Not a CMS or a build system.** It renders nothing, builds nothing and runs nothing on the server side; the one generated page is nginx's listing of a folder without an `index.html`.
 - **Not a public host.** It is designed for a private LAN over plain HTTP, not for the internet or for users who do not trust one another.
-- **Not a replacement for a released project's GitHub Pages site.** Once a project has a public repository and ships releases, its documentation moves there; paper-boxing is for the time before, and for what stays private.
+- **Not a replacement for a released project's GitHub Pages site.** A released project's documentation is published from its repository's Pages site; paper-boxing previews that site before the release, and keeps what stays private.
 - **Not a version store.** It keeps no history; a repository does that.
 
 ---
