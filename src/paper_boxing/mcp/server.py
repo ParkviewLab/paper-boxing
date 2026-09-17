@@ -9,7 +9,7 @@ behind a stateless `StreamableHTTPSessionManager` mounted at `/mcp` (POST
 only; GET and DELETE answer 405), transport security on, CORS limited to the
 same origin allowlist, gzip, and the ops endpoints.
 
-In front of the transport sits `auth.TokenGate`, the three safeguards of
+The ASGI callable at `/mcp` is `auth.TokenGate`, the three safeguards of
 docs/design.md section 4a: every request's bearer is confirmed with the
 backend before the transport sees the request, nothing is kept between
 requests, and only an agent token passes. The handlers below read that
@@ -17,7 +17,8 @@ confirmation from the HTTP request the SDK exposes as
 `mcp.request_context.request`, list the tools the token's scope allows, and
 run a call through `tools.dispatch` with the token forwarded to the backend
 under `X-Paper-Boxing-Via: mcp`. Every failure comes back as a tool result
-with `isError`, never as an exception the client cannot read.
+with `isError`, never as an exception the client cannot read, and every HTTP
+error of this app (the gate's, `/sse`, a 404 or 405) has the contract's body.
 
 One `httpx.AsyncClient` serves every request; the lifespan opens it through
 `http_client_factory`, the one seam a test replaces to point the server at
@@ -46,9 +47,9 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from paper_boxing.common.client import BackendClient
+from paper_boxing.common.errors import error_response, install_error_handlers
 from paper_boxing.common.routes import VIA_MCP
 from paper_boxing.common.schema import ErrorCode, Health
-from paper_boxing.common.scopes import Scope
 from paper_boxing.mcp import auth, tools
 from paper_boxing.mcp.config import NAME, VERSION, McpConfig, load_config
 
@@ -64,8 +65,14 @@ SPECS = tools.tool_specs(cfg.max_file_mb)
 
 
 def request_body_limit(max_file_bytes: int) -> int:
-    """The largest request body /mcp accepts: a file at the cap, base64-encoded, inside its JSON-RPC envelope."""
-    return 4 * ((max_file_bytes + 2) // 3) + 64 * 1024
+    """The largest request body /mcp accepts: a file at the cap, base64-encoded, inside its JSON-RPC envelope.
+
+    The encoding may be line-wrapped at 76 columns (`base64.encodebytes`), which `upload_file`
+    accepts, so each line's newline costs two bytes escaped in JSON; the envelope gets 64 KiB.
+    """
+    encoded = 4 * ((max_file_bytes + 2) // 3)
+    lines = (encoded + 75) // 76
+    return encoded + 2 * lines + 64 * 1024
 
 
 def _real_http_client(config: McpConfig) -> httpx.AsyncClient:
@@ -111,23 +118,20 @@ def _confirmed() -> auth.Confirmed:
     confirmed = auth.confirmed_from(request)
     if confirmed is None:
         raise tools.ToolError(
-            ErrorCode.UNAUTHORIZED.value, "no confirmed agent token on this request; nothing was run"
+            ErrorCode.UNAUTHORIZED, "no confirmed agent token on this request; nothing was run"
         )
     return confirmed
 
 
 @mcp.list_tools()
-async def list_tools(request: types.ListToolsRequest) -> list[types.Tool]:
-    # The SDK refreshes its own schema cache by calling this handler with None in place of a
-    # request; that cache serves input and output validation, not authorization, so it gets the
-    # whole catalogue. A client's tools/list gets the tools its confirmed token's scope allows.
-    if request is None:
-        return tools.list_tools(SPECS, Scope.REMOVE_DESTRUCTIVE)
+async def list_tools(request: types.ListToolsRequest) -> types.ListToolsResult:
     try:
         confirmed = _confirmed()
     except tools.ToolError as e:
         raise McpError(types.ErrorData(code=types.INVALID_REQUEST, message=str(e))) from e
-    return tools.list_tools(SPECS, confirmed.token.scope)
+    # A ListToolsResult merges into the SDK's schema cache, where a plain list would clear it to
+    # this caller's scope; the cache serves validation, and authorization stays in the dispatch.
+    return types.ListToolsResult(tools=tools.list_tools(SPECS, confirmed.token.scope))
 
 
 @mcp.call_tool(validate_input=False)
@@ -146,35 +150,24 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | ty
         return e.result()
     except Exception as e:  # every failure is a tool error the client can read
         logger.exception("tool %s failed", name)
-        return tools.ToolError(ErrorCode.INTERNAL_ERROR.value, f"{type(e).__name__}: {e}").result()
+        return tools.ToolError(ErrorCode.INTERNAL_ERROR, f"{type(e).__name__}: {e}").result()
 
 
-class MCPASGIApp:
-    """Raw ASGI3 endpoint (a class instance, so Starlette does not wrap it in request_response)."""
-
-    def __init__(self) -> None:
-        self.gate = auth.TokenGate(
-            session_manager.handle_request,
-            backend,
-            security=security_settings,
-            max_body_bytes=session_manager.max_request_body_size,
-        )
-
-    async def __call__(self, scope, receive, send) -> None:
-        await self.gate(scope, receive, send)
-
-
-mcp_asgi = MCPASGIApp()
+# The raw ASGI3 endpoint at /mcp (a class instance, so Starlette does not wrap it in request_response).
+mcp_asgi = auth.TokenGate(
+    session_manager.handle_request,
+    backend,
+    security=security_settings,
+    max_body_bytes=session_manager.max_request_body_size,
+)
 
 
 async def legacy_sse(request: Request) -> JSONResponse:
     """The old HTTP+SSE path answers 405 naming /mcp, so a legacy client fails instead of hanging."""
-    return JSONResponse(
-        {
-            "error": "method_not_allowed",
-            "message": "This server speaks Streamable HTTP at /mcp (POST). There is no /sse transport.",
-        },
-        status_code=405,
+    return error_response(
+        405,
+        ErrorCode.METHOD_NOT_ALLOWED,
+        "This server speaks Streamable HTTP at /mcp (POST). There is no /sse transport.",
         headers={"Allow": ""},
     )
 
@@ -216,6 +209,7 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/openapi.json",
 )
+install_error_handlers(app)  # a 404 or 405 from the framework has the contract's body too
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cfg.allowed_origins,  # the MCP transport's allowlist, never "*"
