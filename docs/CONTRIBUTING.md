@@ -47,7 +47,7 @@ uvx --from "reuse[charset-normalizer]" reuse lint
 
 A PR **can't be merged until the required checks pass** (lint, format, types, tests, REUSE, the version guard — see the handbook's `ci.md`). Push after each commit. See also `python-tooling.md` and `testing.md`.
 
-The integration tier runs against the compose stack built from the tree; CI runs it on every PR, and locally it is:
+The integration tier runs against the compose stack built from the tree and drives the `docker` CLI as well (it inspects the volume through the backend container and stops and starts the backend once); CI runs it on every PR, and locally it is:
 
 ```bash
 docker compose -f docker-compose.yml -f tests/integration/compose.build.yml --env-file tests/integration/integration.env up -d --build --wait

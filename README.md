@@ -12,7 +12,7 @@ paper-boxing is where a project's documents live during early design and specifi
 
 ## Status
 
-Under construction. This is the scaffold: the package skeleton, the API contract, the images and the stack. The backend's REST API, the frontend's pages and the MCP server's tools are being built against the contract in [`docs/api.md`](docs/api.md); the design is [`docs/design.md`](docs/design.md) and the intent [`docs/northstar.md`](docs/northstar.md).
+Under construction, ahead of the first release. The backend's REST API, the frontend's pages and the MCP server's tools are built against the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request; no image has been published yet. The design is [`docs/design.md`](docs/design.md) and the intent [`docs/northstar.md`](docs/northstar.md).
 
 Four containers make a deployment:
 
@@ -30,12 +30,13 @@ All three paper-boxing images are built from one commit and carry one version.
 paper-boxing runs in Docker, either with `docker compose` or as a Portainer stack; there is no PyPI package. [`docs/deployment.md`](docs/deployment.md) is the full guide: building the images, every variable, first sign-in, updating, backing up, connecting an MCP client.
 
 ```bash
-cp .env.example .env          # set the two secrets and the public sites URL
+cp .env.example .env          # set the public sites URL, the admin password, the storage secret and the MCP allowed hosts
 docker compose up -d
+docker compose ps             # four containers; frontend and mcp show "health: starting" for a few seconds; nginx has no health check
 curl http://127.0.0.1:35843/health
 ```
 
-For Portainer, paste [`docker-compose.yml`](docker-compose.yml) into the stack's web editor and enter the same variables as the stack's environment variables.
+Then open `http://<host>:35840/` and sign in with the admin pair from `.env`. For Portainer, paste [`docker-compose.yml`](docker-compose.yml) into the stack's web editor and enter the same variables as the stack's environment variables; [`docs/deployment.md`](docs/deployment.md) walks through it.
 
 What the deployment model assumes, stated plainly: one person's private LAN, plain HTTP, no TLS. Passwords and tokens travel unencrypted between the browser or the agent and the stack; there is no lockout after failed sign-ins. Safeguards against accidents are part of paper-boxing (path containment, overwrite and delete intent, token scopes); measures against strangers are not, and it is not for the public internet.
 
@@ -90,8 +91,8 @@ Backend:
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | the site server's address as people and links reach it; every site's URL is built from it |
 | `PAPER_BOXING_ADMIN_USERNAME` | unset | the first account, created only when no account exists; the same rules as any account (`[A-Za-z0-9][A-Za-z0-9._-]*`, at most 64 characters) |
 | `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password, at least 8 characters; ignored once an account exists. While no account exists, an invalid pair stops the backend from starting |
-| `PAPER_BOXING_MAX_UPLOAD_MB` | `200` | size cap of one uploaded file |
-| `PAPER_BOXING_SESSION_DAYS` | `14` | sliding expiry of a UI session |
+| `PAPER_BOXING_MAX_UPLOAD_MB` | `200` | size cap of one uploaded file, in MiB; at least 1 |
+| `PAPER_BOXING_SESSION_DAYS` | `14` | sliding expiry of a UI session, in days; at least 1 |
 
 Frontend:
 
@@ -111,10 +112,10 @@ MCP server:
 | `PORT` | `35842` | listen port |
 | `PAPER_BOXING_BACKEND_URL` | `http://127.0.0.1:35843` | the backend |
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | as for the backend |
-| `PAPER_BOXING_MCP_MAX_FILE_MB` | `8` | largest file a tool call carries |
+| `PAPER_BOXING_MCP_MAX_FILE_MB` | `8` | largest file a tool call carries, in MiB; larger files go through the REST API |
 | `PAPER_BOXING_MCP_ENABLE_TRANSPORT_SECURITY` | `true` | Host and Origin validation (DNS-rebinding protection) on `/mcp` |
-| `PAPER_BOXING_MCP_ALLOWED_HOSTS` | `localhost, 127.0.0.1, [::1]`, each also with `:*` | comma-separated `Host` values accepted on `/mcp`; a deployment adds `<host>:35842`. Another Host gets 421 |
-| `PAPER_BOXING_MCP_ALLOWED_ORIGINS` | `http://localhost`, `http://127.0.0.1`, each also with `:35842` | browser origins accepted on `/mcp` and for CORS; a non-browser client sends no Origin and passes. Another Origin gets 403 |
+| `PAPER_BOXING_MCP_ALLOWED_HOSTS` | `localhost`, `127.0.0.1`, `[::1]`, each also with `:*` | comma-separated `Host` values accepted on `/mcp`; a deployment adds `<host>:35842` (or `<host>:*`). Another Host gets 421 |
+| `PAPER_BOXING_MCP_ALLOWED_ORIGINS` | `http://localhost`, `http://127.0.0.1`, each also with the listen port (`:35842`) | comma-separated browser origins accepted on `/mcp` and for CORS; a non-browser client sends no Origin and passes. Another Origin gets 403 |
 
 There is no shared static token: an agent authenticates with an agent token that a signed-in user created, and the backend enforces the token's scope on every call, whichever client made it.
 
