@@ -29,4 +29,4 @@ This repo is [REUSE](https://reuse.software/)-compliant: every file declares its
 uvx --from "reuse[charset-normalizer]" reuse lint
 ```
 
-One exception: the ParkviewLab mark vendored at `src/paper_boxing/frontend/brand/parkview_lab_mark.svg` is all rights reserved (`LicenseRef-AllRightsReserved`, text in `LICENSES/`), as every ParkviewLab logo is; it is not offered under either licence above.
+Two exceptions, both recorded in [`REUSE.toml`](REUSE.toml). The ParkviewLab brand files vendored under `src/paper_boxing/frontend/brand/` (the two horizontal black-and-white logos, `parkview_lab_bw_horizontal_dark.svg` and `parkview_lab_bw_horizontal_white.svg`) are all rights reserved (`LicenseRef-AllRightsReserved`, text in [`LICENSES/LicenseRef-AllRightsReserved.txt`](LICENSES/LicenseRef-AllRightsReserved.txt)), as every ParkviewLab logo is, and are not offered under either licence above. The Michroma font vendored under `src/paper_boxing/frontend/brand/fonts/` (`michroma-latin.woff2`) is under the SIL Open Font License 1.1 (`OFL-1.1`, text in [`LICENSES/OFL-1.1.txt`](LICENSES/OFL-1.1.txt)), a third-party licence that travels with the font.
