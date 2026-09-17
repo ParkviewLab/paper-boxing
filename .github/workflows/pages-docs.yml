@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Deploy the site
+
+# Publishes https://parkviewlab.github.io/paper-boxing/ from main, so the site shows the
+# newest RELEASED documentation: the generated index, any hand-built pages under
+# site/, and docs/ byte-identical under /docs/. Nothing generated is committed.
+#
+# The site is assembled by dev-tools' build-pages-site (the handbook's docs-site.md),
+# checked out beside this repository at a released tag. Two repository settings go
+# with it, once each: the Pages source is the Actions workflow, and the github-pages
+# environment's deployment branch policy allows main and nothing else.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; let an in-flight publish finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main             # always publish the released state, never develop
+          fetch-depth: 0        # tags — the build reads the newest release from them
+
+      - uses: actions/checkout@v6
+        with:
+          repository: ParkviewLab/dev-tools
+          ref: v1.1.0           # the build script's release; bump deliberately
+          path: dev-tools
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Build the site
+        run: python3 dev-tools/scripts/build-pages-site --out "${{ runner.temp }}/site"
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deployment
+        uses: actions/deploy-pages@v5
