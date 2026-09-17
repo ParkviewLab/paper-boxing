@@ -7,7 +7,6 @@ and delete it after typing its slug back."""
 
 from __future__ import annotations
 
-from fastapi.responses import RedirectResponse
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError
@@ -17,10 +16,8 @@ from paper_boxing.common.schema import Site
 from paper_boxing.frontend import auth, backend, layout
 
 
-async def page() -> RedirectResponse | None:
-    token = auth.token()
-    if token is None:
-        return RedirectResponse(auth.login_url("/"))
+async def page() -> None:
+    token = auth.session_token()
     client = backend.client()
     public_sites_url = backend.config().public_sites_url
 
@@ -103,18 +100,17 @@ async def page() -> RedirectResponse | None:
                     ).props("flat no-caps").mark("delete-site")
 
         async def confirm_delete(site: Site) -> None:
-            with ui.dialog() as dialog, ui.card().classes("gap-3"):
-                ui.label(f"Delete the site '{site.name}' and every file in it?").classes("text-lg")
-                ui.label("This cannot be undone. Type the site's slug to confirm:")
+            with layout.confirmation(
+                f"Delete the site '{site.name}' and every file in it?",
+                "This cannot be undone. Type the site's slug to confirm:",
+            ) as dialog:
                 ui.label(site.slug).classes("font-mono")
                 typed = (
                     ui.input("Slug").props("outlined dense autofocus").classes("w-full").mark("confirm-slug")
                 )
-                with ui.row().classes("justify-end w-full"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-                    ui.button(
-                        "Delete site", color="negative", on_click=lambda: dialog.submit(typed.value or "")
-                    ).props("no-caps").mark("confirm-delete-site")
+                layout.confirmation_buttons(
+                    dialog, "Delete site", lambda: dialog.submit(typed.value or ""), "confirm-delete-site"
+                )
             confirm = await dialog
             dialog.delete()
             if confirm is None:
@@ -128,4 +124,3 @@ async def page() -> RedirectResponse | None:
             await site_list.refresh()
 
         await site_list()
-    return None

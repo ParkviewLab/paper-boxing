@@ -13,7 +13,7 @@ element and no per-user value is created at import time.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 
@@ -56,6 +56,34 @@ async def sign_out() -> None:
         with suppress(BackendError):
             await backend.client().logout(token)
     ui.navigate.to(auth.LOGIN_PATH)
+
+
+@contextmanager
+def confirmation(question: str, detail: str | None = None) -> Iterator[ui.dialog]:
+    """A dialog asking `question`, with an optional line of detail; the caller adds its controls and buttons."""
+    with ui.dialog() as dialog, ui.card().classes("gap-3"):
+        ui.label(question).classes("text-lg")
+        if detail:
+            ui.label(detail)
+        yield dialog
+
+
+def confirmation_buttons(
+    dialog: ui.dialog, action_label: str, on_confirm: Callable[[], None], mark: str
+) -> None:
+    """Cancel, which closes the dialog (an awaited dialog then resolves to None), and the destructive action."""
+    with ui.row().classes("justify-end w-full"):
+        ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
+        ui.button(action_label, color="negative", on_click=on_confirm).props("no-caps").mark(mark)
+
+
+async def confirm(question: str, detail: str | None, action_label: str, *, mark: str) -> bool:
+    """Ask before a destructive action; True when the person chose it, False when they cancelled."""
+    with confirmation(question, detail) as dialog:
+        confirmation_buttons(dialog, action_label, lambda: dialog.submit(True), mark)
+    confirmed = await dialog
+    dialog.delete()
+    return confirmed is True
 
 
 def error_text(error: BackendError) -> str:

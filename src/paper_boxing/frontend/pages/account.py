@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-from fastapi.responses import RedirectResponse
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError
@@ -16,10 +15,8 @@ from paper_boxing.frontend import auth, backend, layout
 MIN_PASSWORD_LENGTH = ChangePasswordRequest.model_fields["new"].metadata[0].min_length
 
 
-async def page() -> RedirectResponse | None:
-    token = auth.token()
-    if token is None:
-        return RedirectResponse(auth.login_url("/account"))
+async def page() -> None:
+    token = auth.session_token()
     client = backend.client()
 
     with layout.frame("Account"):
@@ -72,4 +69,3 @@ async def page() -> RedirectResponse | None:
 
             again.on("keydown.enter", change)
             ui.button("Change password", icon="lock_reset", on_click=change).mark("change-password")
-    return None

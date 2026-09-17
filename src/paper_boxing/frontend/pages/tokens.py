@@ -7,7 +7,6 @@ with a copy button), list every user's tokens, revoke one."""
 
 from __future__ import annotations
 
-from fastapi.responses import RedirectResponse
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError
@@ -22,10 +21,8 @@ SCOPE_LABELS: dict[Scope, str] = {
 }
 
 
-async def page() -> RedirectResponse | None:
-    token = auth.token()
-    if token is None:
-        return RedirectResponse(auth.login_url("/tokens"))
+async def page() -> None:
+    token = auth.session_token()
     client = backend.client()
 
     with layout.frame("Agent tokens"):
@@ -110,17 +107,12 @@ async def page() -> RedirectResponse | None:
                 ).props("flat no-caps").mark("revoke-token")
 
         async def confirm_revoke(item: Token) -> None:
-            with ui.dialog() as dialog, ui.card().classes("gap-3"):
-                ui.label(f"Revoke the token '{item.name}' of {item.username}?").classes("text-lg")
-                ui.label("Every agent using it is refused from now on.")
-                with ui.row().classes("justify-end w-full"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-                    ui.button("Revoke", color="negative", on_click=lambda: dialog.submit(True)).props(
-                        "no-caps"
-                    ).mark("confirm-revoke")
-            confirmed = await dialog
-            dialog.delete()
-            if not confirmed:
+            if not await layout.confirm(
+                f"Revoke the token '{item.name}' of {item.username}?",
+                "Every agent using it is refused from now on.",
+                "Revoke",
+                mark="confirm-revoke",
+            ):
                 return
             try:
                 await client.revoke_token(token, item.id)
@@ -131,4 +123,3 @@ async def page() -> RedirectResponse | None:
             await token_list.refresh()
 
         await token_list()
-    return None

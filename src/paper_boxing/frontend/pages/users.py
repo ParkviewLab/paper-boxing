@@ -7,7 +7,6 @@ to remove the last, and the page shows its reason."""
 
 from __future__ import annotations
 
-from fastapi.responses import RedirectResponse
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError
@@ -15,10 +14,8 @@ from paper_boxing.common.schema import User
 from paper_boxing.frontend import auth, backend, layout
 
 
-async def page() -> RedirectResponse | None:
-    token = auth.token()
-    if token is None:
-        return RedirectResponse(auth.login_url("/users"))
+async def page() -> None:
+    token = auth.session_token()
     client = backend.client()
 
     with layout.frame("Users"):
@@ -83,21 +80,12 @@ async def page() -> RedirectResponse | None:
 
         async def confirm_remove(user: User) -> None:
             mine = user.id == auth.user_id()
-            with ui.dialog() as dialog, ui.card().classes("gap-3"):
-                ui.label(f"Remove the account '{user.username}'?").classes("text-lg")
-                ui.label("Every session and agent token of that account is revoked.")
-                if mine:
-                    ui.label(
-                        "This is your own account: you are signed out as soon as it is removed."
-                    ).classes("text-negative")
-                with ui.row().classes("justify-end w-full"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-                    ui.button("Remove", color="negative", on_click=lambda: dialog.submit(True)).props(
-                        "no-caps"
-                    ).mark("confirm-remove-user")
-            confirmed = await dialog
-            dialog.delete()
-            if not confirmed:
+            detail = "Every session and agent token of that account is revoked."
+            if mine:
+                detail += " This is your own account: you are signed out as soon as it is removed."
+            if not await layout.confirm(
+                f"Remove the account '{user.username}'?", detail, "Remove", mark="confirm-remove-user"
+            ):
                 return
             try:
                 await client.delete_user(token, user.id)
@@ -112,4 +100,3 @@ async def page() -> RedirectResponse | None:
             await user_list.refresh()
 
         await user_list()
-    return None

@@ -18,7 +18,6 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlencode
 
-from fastapi.responses import RedirectResponse
 from nicegui import app, ui
 from nicegui.events import MultiUploadEventArguments, UploadEventArguments
 
@@ -34,10 +33,8 @@ def folder_url(slug: str, folder: str) -> str:
     return f"/sites/{slug}?{urlencode({'path': folder})}" if folder else f"/sites/{slug}"
 
 
-async def page(slug: str, path: str = "") -> RedirectResponse | None:
-    token = auth.token()
-    if token is None:
-        return RedirectResponse(auth.login_url(folder_url(slug, path)))
+async def page(slug: str, path: str = "") -> None:
+    token = auth.session_token()
     client = backend.client()
     public_sites_url = backend.config().public_sites_url
 
@@ -47,7 +44,7 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
         with layout.frame("Site"):
             ui.label(f"Invalid folder path: {e}").classes("text-negative")
             ui.link("Back to the site root", folder_url(slug, ""))
-        return None
+        return
 
     try:
         site = await client.get_site(token, slug)
@@ -58,7 +55,7 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                 ui.link("Back to the sites", "/")
             else:
                 layout.report_error(e)
-        return None
+        return
 
     url = site_url(public_sites_url, site.slug)
     results_key = f"uploads:{site.slug}"
@@ -286,16 +283,9 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
             await listing.refresh()
 
         async def delete_file(full: str) -> None:
-            with ui.dialog() as dialog, ui.card().classes("gap-3"):
-                ui.label(f"Delete the file {full}?").classes("text-lg")
-                with ui.row().classes("justify-end w-full"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-                    ui.button("Delete", color="negative", on_click=lambda: dialog.submit(True)).props(
-                        "no-caps"
-                    ).mark("confirm-delete-file")
-            confirmed = await dialog
-            dialog.delete()
-            if not confirmed:
+            if not await layout.confirm(
+                f"Delete the file {full}?", None, "Delete", mark="confirm-delete-file"
+            ):
                 return
             try:
                 await client.delete_file(token, site.slug, full)
@@ -306,19 +296,19 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
             await listing.refresh()
 
         async def delete_folder(full: str) -> None:
-            with ui.dialog() as dialog, ui.card().classes("gap-3"):
-                ui.label(f"Delete the folder {full}?").classes("text-lg")
-                ui.label("An empty folder goes at once. One with contents needs the recursive choice below.")
+            with layout.confirmation(
+                f"Delete the folder {full}?",
+                "An empty folder goes at once. One with contents needs the recursive choice below.",
+            ) as dialog:
                 recursive = ui.checkbox("Also delete everything inside it (recursive)").mark("recursive")
                 problem = ui.label().classes("text-negative").mark("folder-problem")
                 problem.visible = False
-                with ui.row().classes("justify-end w-full"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-                    ui.button(
-                        "Delete folder",
-                        color="negative",
-                        on_click=lambda: dialog.submit(bool(recursive.value)),
-                    ).props("no-caps").mark("confirm-delete-folder")
+                layout.confirmation_buttons(
+                    dialog,
+                    "Delete folder",
+                    lambda: dialog.submit(bool(recursive.value)),
+                    "confirm-delete-folder",
+                )
             while True:
                 choice = await dialog
                 if choice is None:
@@ -341,4 +331,3 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
         await listing()
         await ui.context.client.connected()
         upload_results.refresh()
-    return None
