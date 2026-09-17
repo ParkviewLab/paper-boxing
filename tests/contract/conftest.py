@@ -1,0 +1,121 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+"""Fixtures for the REST contract suite.
+
+`api` is a fresh backend per test with one bootstrap account, and `actors`
+holds a bearer token of every kind: a session, an agent token per scope, and
+a revoked one. The suite is parametrised over the two implementations of
+the contract: `fake`, the in-memory backend in `common/`, and `real`, the
+backend proper (`paper_boxing.backend.app.create_app` over a temporary data
+directory, with the admin bootstrap set and a cheap argon2 profile so that
+every test's sign-ins stay fast; see `tests/_backend_helpers.py`). The same
+tests passing against both is what proves the two identical.
+
+`clock` moves time forward on either implementation; `fake` exposes the
+fake's state (its request record) and skips on the real backend.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from paper_boxing.backend.clock import Clock
+from paper_boxing.common.fake_backend import FakeState, create_fake_backend
+from paper_boxing.common.scopes import Scope
+from tests._backend_helpers import ADMIN, backend_app, backend_config
+
+
+@dataclass(frozen=True)
+class Actors:
+    """Bearer secrets, one per kind of caller."""
+
+    session: str
+    read_only: str
+    read_write: str
+    remove_destructive: str
+    revoked: str
+    read_only_id: str
+    remove_destructive_id: str
+
+    def for_scope(self, scope: Scope) -> str:
+        return {
+            Scope.READ_ONLY: self.read_only,
+            Scope.READ_WRITE: self.read_write,
+            Scope.REMOVE_DESTRUCTIVE: self.remove_destructive,
+        }[scope]
+
+
+@pytest.fixture(params=["fake", "real"])
+def api(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[TestClient]:
+    """A fresh backend per test. The bootstrap account is `ADMIN`."""
+    if request.param == "fake":
+        app = create_fake_backend(admin=ADMIN, max_upload_mb=1, session_days=14)
+    else:
+        app = backend_app(backend_config(tmp_path / "data", max_upload_mb=1, session_days=14))
+    with TestClient(app, base_url="http://localhost") as client:
+        yield client
+
+
+def _implementation(request: pytest.FixtureRequest) -> str:
+    """Which `api` parameter the running test has: "fake" or "real"."""
+    return request.node.callspec.params["api"]
+
+
+@pytest.fixture
+def clock(api: TestClient, request: pytest.FixtureRequest) -> Clock:
+    """The backend's clock, whichever implementation is under test. `advance(seconds)` moves the time
+    that stamps accounts, sessions and a site's `created_at`; a file's `modified_at` comes from the
+    filesystem and does not move with it."""
+    state = api.app.state  # type: ignore[attr-defined]
+    return state.fake.clock if _implementation(request) == "fake" else state.clock
+
+
+@pytest.fixture
+def fake(api: TestClient, request: pytest.FixtureRequest) -> FakeState:
+    """The fake's state, for tests that need its request record (fake only)."""
+    if _implementation(request) == "real":
+        pytest.skip("the request record is the fake backend's own; the real one logs instead")
+    return api.app.state.fake  # type: ignore[attr-defined]
+
+
+@pytest.fixture
+def actors(api: TestClient) -> Actors:
+    login = api.post("/api/v1/auth/login", json={"username": ADMIN[0], "password": ADMIN[1]})
+    assert login.status_code == 200, login.text
+    session = login.json()["token"]
+
+    def agent(name: str, scope: Scope) -> tuple[str, str]:
+        resp = api.post(
+            "/api/v1/tokens",
+            json={"name": name, "scope": scope.value},
+            headers={"Authorization": f"Bearer {session}"},
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["token"]["id"], resp.json()["secret"]
+
+    ro_id, ro = agent("ro", Scope.READ_ONLY)
+    _, rw = agent("rw", Scope.READ_WRITE)
+    rd_id, rd = agent("rd", Scope.REMOVE_DESTRUCTIVE)
+    revoked_id, revoked = agent("gone", Scope.REMOVE_DESTRUCTIVE)
+    resp = api.delete(f"/api/v1/tokens/{revoked_id}", headers={"Authorization": f"Bearer {session}"})
+    assert resp.status_code == 204, resp.text
+    return Actors(
+        session=session,
+        read_only=ro,
+        read_write=rw,
+        remove_destructive=rd,
+        revoked=revoked,
+        read_only_id=ro_id,
+        remove_destructive_id=rd_id,
+    )
+
+
+def bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
