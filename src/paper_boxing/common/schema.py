@@ -65,6 +65,7 @@ class ErrorCode(StrEnum):
     # 500 / 507
     INTERNAL_ERROR = "internal_error"
     INSUFFICIENT_STORAGE = "insufficient_storage"
+    # 503, the MCP server's own: the backend could not be reached, or did not confirm a token as the contract says
     BACKEND_UNREACHABLE = "backend_unreachable"
 
 
