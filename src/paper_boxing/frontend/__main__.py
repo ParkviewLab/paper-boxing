@@ -7,7 +7,7 @@
 import logging
 import sys
 
-from paper_boxing.frontend.app import run
+from paper_boxing.frontend.app import install, run
 from paper_boxing.frontend.config import load_config
 
 
@@ -21,6 +21,7 @@ def main() -> None:
             file=sys.stderr,
         )
         raise SystemExit(2)
+    install(cfg)
     run(cfg)
 
 

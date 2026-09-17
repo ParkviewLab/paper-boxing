@@ -13,6 +13,11 @@ reload guard covers the case where another module imported it first.
 
 The backend and frontend apps have no such constraint, but the same shape is
 used for symmetry. Data lives in `tmp_path_factory` directories only.
+
+The frontend's pages are tested with `nicegui.testing`'s `user` fixture
+(`user_plugin`, not `plugin`, which imports selenium): it executes
+`tests/frontend_main.py` afresh per test, which installs the frontend against
+a fake backend; `fake_state` and `second_user` below build on it.
 """
 
 from __future__ import annotations
@@ -20,10 +25,16 @@ from __future__ import annotations
 import importlib
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from fastapi.testclient import TestClient
+from nicegui.testing import User
+
+from paper_boxing.common.fake_backend import FakeState
+from tests import frontend_support as support
+
+pytest_plugins = ["nicegui.testing.user_plugin"]
 
 
 @pytest.fixture(scope="session")
@@ -43,10 +54,26 @@ def frontend_client() -> Iterator[TestClient]:
     os.environ["PAPER_BOXING_STORAGE_SECRET"] = "test-secret"
     from nicegui import app
 
-    import paper_boxing.frontend.app  # noqa: F401  (registers the routes on NiceGUI's app)
+    from paper_boxing.frontend.app import install
+    from paper_boxing.frontend.config import load_config
 
+    install(load_config())  # the routes on NiceGUI's app
     # No lifespan: NiceGUI's startup wants a running ui.run(); the ops routes need none of it.
     yield TestClient(app, base_url="http://localhost")
+
+
+@pytest.fixture
+def fake_state(user: User) -> FakeState:
+    """The fake backend behind the frontend under test (built by tests/frontend_main.py for this test)."""
+    return support.current().state
+
+
+@pytest.fixture
+async def second_user(user: User) -> AsyncIterator[User]:
+    """Another person in another browser: its own cookie jar, so its own `app.storage.user`."""
+    other = support.new_user()
+    yield other
+    await other.http_client.aclose()
 
 
 @pytest.fixture(scope="session")
