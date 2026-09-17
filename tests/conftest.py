@@ -16,12 +16,8 @@ used for symmetry. Data lives in `tmp_path_factory` directories only, except
 NiceGUI's own storage, which its test plugin points at a temporary directory
 of its own before the first test.
 
-The frontend's pages are tested with `nicegui.testing`'s `user` fixture
-(`user_plugin`, not `plugin`, which imports selenium): it executes
-`tests/frontend_main.py` afresh per test, which installs the frontend against
-a fake backend; `frontend_state` and `second_user` below build on it. Their
-names are prefixed so that nothing here collides with the MCP suite's fixtures
-in this file (`fake_state`, `fake_backend_app`, `mcp_client`, `ADMIN`).
+The frontend's page fixtures live in `tests/frontend_fixtures.py`, loaded
+through `pytest_plugins` at the end of this file beside NiceGUI's user plugin.
 """
 
 from __future__ import annotations
@@ -29,16 +25,10 @@ from __future__ import annotations
 import importlib
 import os
 import sys
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from nicegui.testing import User
-
-from paper_boxing.common.fake_backend import FakeState
-from tests import frontend_support as support
-
-pytest_plugins = ["nicegui.testing.user_plugin"]
 
 
 @pytest.fixture(scope="session")
@@ -66,20 +56,6 @@ def frontend_client() -> Iterator[TestClient]:
     yield TestClient(app, base_url="http://localhost")
 
 
-@pytest.fixture
-def frontend_state(user: User) -> FakeState:
-    """The fake backend behind the frontend under test (built by tests/frontend_main.py for this test)."""
-    return support.current().state
-
-
-@pytest.fixture
-async def second_user(user: User) -> AsyncIterator[User]:
-    """Another person in another browser: its own cookie jar, so its own `app.storage.user`."""
-    other = support.new_user()
-    yield other
-    await other.http_client.aclose()
-
-
 @pytest.fixture(scope="session")
 def mcp_client() -> Iterator[TestClient]:
     os.environ["PAPER_BOXING_MCP_ENABLE_TRANSPORT_SECURITY"] = "true"
@@ -93,3 +69,7 @@ def mcp_client() -> Iterator[TestClient]:
     # (the TestClient default "testserver" would be rejected with 421).
     with TestClient(app, base_url="http://localhost") as client:
         yield client
+
+
+# NiceGUI's user simulation (user_plugin, not plugin, which imports selenium) and the frontend's fixtures.
+pytest_plugins = ["nicegui.testing.user_plugin", "tests.frontend_fixtures"]
