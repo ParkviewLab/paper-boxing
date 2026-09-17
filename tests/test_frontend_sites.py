@@ -13,7 +13,7 @@ from paper_boxing.common.fake_backend import FakeState
 from tests import frontend_support as support
 
 
-async def test_create_site_shows_it_with_its_public_url(user: User, fake_state: FakeState) -> None:
+async def test_create_site_shows_it_with_its_public_url(user: User, frontend_state: FakeState) -> None:
     await support.sign_in(user, *support.ADMIN)
     await user.should_see(marker="no-sites")
     user.find(marker="site-name").type("PensaForma: Design")
@@ -21,8 +21,8 @@ async def test_create_site_shows_it_with_its_public_url(user: User, fake_state: 
     user.find(marker="create-site").click()
     await user.should_see("Site 'PensaForma: Design' created")
     await user.should_see(f"{support.PUBLIC_SITES_URL}/pensaforma-design/")
-    assert "pensaforma-design" in fake_state.sites
-    assert fake_state.sites["pensaforma-design"].name == "PensaForma: Design"
+    assert "pensaforma-design" in frontend_state.sites
+    assert frontend_state.sites["pensaforma-design"].name == "PensaForma: Design"
 
 
 async def test_backend_messages_are_shown_as_text(user: User) -> None:
@@ -40,7 +40,7 @@ async def test_backend_messages_are_shown_as_text(user: User) -> None:
 
 
 async def test_delete_refuses_a_wrong_slug_and_accepts_the_right_one(
-    user: User, fake_state: FakeState
+    user: User, frontend_state: FakeState
 ) -> None:
     slug = await support.seed_site("Doomed", {"index.html": b"<p>"})
     await support.sign_in(user, *support.ADMIN)
@@ -50,7 +50,7 @@ async def test_delete_refuses_a_wrong_slug_and_accepts_the_right_one(
     user.find(marker="confirm-slug").type("doome")
     user.find(marker="confirm-delete-site").click()
     await user.should_see("pass ?confirm=doomed to delete the site")
-    assert slug in fake_state.sites
+    assert slug in frontend_state.sites
     await user.should_see("Doomed")
 
     user.find(marker="delete-site").click()
@@ -59,27 +59,27 @@ async def test_delete_refuses_a_wrong_slug_and_accepts_the_right_one(
     user.find(marker="confirm-delete-site").click()
     await user.should_see("Site 'Doomed' deleted")
     await user.should_see(marker="no-sites")
-    assert slug not in fake_state.sites
+    assert slug not in frontend_state.sites
 
 
-async def test_cancelling_the_deletion_keeps_the_site(user: User, fake_state: FakeState) -> None:
+async def test_cancelling_the_deletion_keeps_the_site(user: User, frontend_state: FakeState) -> None:
     slug = await support.seed_site("Kept")
     await support.sign_in(user, *support.ADMIN)
     user.find(marker="delete-site").click()
     await user.should_see(marker="confirm-slug")
     user.find("Cancel").click()
     await user.should_not_see(marker="confirm-slug")
-    assert slug in fake_state.sites
+    assert slug in frontend_state.sites
 
 
 async def test_a_session_ended_elsewhere_sends_the_person_to_sign_in(
-    user: User, fake_state: FakeState
+    user: User, frontend_state: FakeState
 ) -> None:
     await support.sign_in(user, *support.ADMIN)
-    (secret,) = support.session_secrets(fake_state, support.ADMIN[0])
-    fake_state.revoke(fake_state.secrets[secret])  # for example, a password change in another browser
+    (secret,) = support.session_secrets(frontend_state, support.ADMIN[0])
+    frontend_state.revoke(frontend_state.secrets[secret])  # for example, a password change in another browser
     user.find(marker="site-name").type("Late")
     user.find(marker="create-site").click()
     await user.should_see("Your session has ended")
     await user.should_see(marker="sign-in")
-    assert "late" not in fake_state.sites
+    assert "late" not in frontend_state.sites

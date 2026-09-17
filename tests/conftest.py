@@ -12,12 +12,16 @@ module is imported, because `server.py` reads its config at import time; the
 reload guard covers the case where another module imported it first.
 
 The backend and frontend apps have no such constraint, but the same shape is
-used for symmetry. Data lives in `tmp_path_factory` directories only.
+used for symmetry. Data lives in `tmp_path_factory` directories only, except
+NiceGUI's own storage, which its test plugin points at a temporary directory
+of its own before the first test.
 
 The frontend's pages are tested with `nicegui.testing`'s `user` fixture
 (`user_plugin`, not `plugin`, which imports selenium): it executes
 `tests/frontend_main.py` afresh per test, which installs the frontend against
-a fake backend; `fake_state` and `second_user` below build on it.
+a fake backend; `frontend_state` and `second_user` below build on it. Their
+names are prefixed so that nothing here collides with the MCP suite's fixtures
+in this file (`fake_state`, `fake_backend_app`, `mcp_client`, `ADMIN`).
 """
 
 from __future__ import annotations
@@ -63,7 +67,7 @@ def frontend_client() -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def fake_state(user: User) -> FakeState:
+def frontend_state(user: User) -> FakeState:
     """The fake backend behind the frontend under test (built by tests/frontend_main.py for this test)."""
     return support.current().state
 

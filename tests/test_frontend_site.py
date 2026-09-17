@@ -30,7 +30,7 @@ async def _uploader(user: User, marker: str = "uploader") -> ui.upload:
     return element
 
 
-async def test_upload_then_409_then_overwrite(user: User, fake_state: FakeState) -> None:
+async def test_upload_then_409_then_overwrite(user: User, frontend_state: FakeState) -> None:
     slug = await support.seed_site("Pages")
     await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
     await user.should_see(marker="empty-folder")
@@ -51,17 +51,17 @@ async def test_upload_then_409_then_overwrite(user: User, fake_state: FakeState)
     await user.should_see("replaced, 10 B")
     assert await support.file_content(slug, "index.html") == b"<p>two</p>"
 
-    uploads = [r for r in fake_state.requests if r.route == "upload_file"]
+    uploads = [r for r in frontend_state.requests if r.route == "upload_file"]
     assert len(uploads) == 3 and all(r.via is None for r in uploads)
 
 
 async def test_several_files_go_one_after_another_with_a_result_each(
-    user: User, fake_state: FakeState
+    user: User, frontend_state: FakeState
 ) -> None:
     slug = await support.seed_site("Batch", {"b.css": b"old"})
     await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
     uploader = await _uploader(user)
-    before = len(fake_state.requests)
+    before = len(frontend_state.requests)
     await uploader.handle_uploads(
         [_upload("a.html", b"<p>"), _upload("b.css", b"p{}"), _upload("c.js", b";")]
     )
@@ -77,7 +77,7 @@ async def test_several_files_go_one_after_another_with_a_result_each(
     assert "'b.css' exists" in ordered[1]
     assert ordered[2].startswith("c.js uploaded, 1 B")
     # one PUT per file, in the order picked, and no batch route
-    uploaded = [r.route for r in fake_state.requests[before:] if r.route != "list_files"]
+    uploaded = [r.route for r in frontend_state.requests[before:] if r.route != "list_files"]
     assert uploaded == ["upload_file", "upload_file", "upload_file"]
     assert await support.file_content(slug, "b.css") == b"old"
 
@@ -151,7 +151,9 @@ async def test_delete_a_file_after_confirming(user: User) -> None:
     assert await support.file_content(slug, "a.txt") is None
 
 
-async def test_delete_a_folder_needs_the_recursive_confirmation(user: User, fake_state: FakeState) -> None:
+async def test_delete_a_folder_needs_the_recursive_confirmation(
+    user: User, frontend_state: FakeState
+) -> None:
     slug = await support.seed_site("Prune", {"docs/a.txt": b"a", "docs/sub/b.txt": b"b"})
     await support.sign_in(user, *support.ADMIN, at=f"/sites/{slug}")
     await user.should_see("docs")
@@ -159,12 +161,12 @@ async def test_delete_a_folder_needs_the_recursive_confirmation(user: User, fake
     await user.should_see(marker="confirm-delete-folder")
     user.find(marker="confirm-delete-folder").click()
     await user.should_see("'docs' is not empty; pass recursive=true to delete everything in it")
-    assert "docs/a.txt" in fake_state.sites[slug].files
+    assert "docs/a.txt" in frontend_state.sites[slug].files
     user.find(marker="recursive").click()
     user.find(marker="confirm-delete-folder").click()
     await user.should_see("Folder docs deleted")
     await user.should_see(marker="empty-folder")
-    assert fake_state.sites[slug].files == {} and fake_state.sites[slug].folders == {}
+    assert frontend_state.sites[slug].files == {} and frontend_state.sites[slug].folders == {}
 
 
 async def test_last_upload_is_remembered_per_tab(user: User) -> None:

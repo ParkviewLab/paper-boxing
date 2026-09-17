@@ -76,6 +76,9 @@ def test_return_path_after_sign_in_stays_on_site() -> None:
     assert auth.safe_next("/sites/x?path=docs") == "/sites/x?path=docs"
     assert auth.safe_next("https://elsewhere.test/") == "/"
     assert auth.safe_next("//elsewhere.test/") == "/"
+    assert auth.safe_next("/\\elsewhere.test/") == "/"  # a browser reads the backslash as a slash here
+    assert auth.safe_next("/\\/elsewhere.test/") == "/"
     assert auth.safe_next("sites/x") == "/"
+    assert auth.safe_next("/") == "/"
     assert auth.login_url("/") == "/login"
     assert auth.login_url("/sites/x?path=a b") == "/login?next=%2Fsites%2Fx%3Fpath%3Da%20b"

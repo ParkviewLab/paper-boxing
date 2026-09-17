@@ -19,7 +19,7 @@ async def test_unauthenticated_request_lands_on_login(user: User) -> None:
     await user.should_not_see(marker="current-user")
 
 
-async def test_sign_in_returns_to_the_requested_page(user: User, fake_state: FakeState) -> None:
+async def test_sign_in_returns_to_the_requested_page(user: User, frontend_state: FakeState) -> None:
     await user.open("/tokens")
     await user.should_see(marker="sign-in")
     user.find(marker="username").type(support.ADMIN[0])
@@ -28,7 +28,7 @@ async def test_sign_in_returns_to_the_requested_page(user: User, fake_state: Fak
     await user.should_see("Agent tokens")
     assert user.find(marker="current-user").elements.pop().text == support.ADMIN[0]
     # the session was issued by the backend, for this user
-    assert len(support.session_secrets(fake_state, support.ADMIN[0])) == 1
+    assert len(support.session_secrets(frontend_state, support.ADMIN[0])) == 1
 
 
 async def test_next_off_site_is_ignored(user: User) -> None:
@@ -37,14 +37,21 @@ async def test_next_off_site_is_ignored(user: User) -> None:
     assert user.back_history[-1] == "/"
 
 
-async def test_wrong_password_shows_the_backend_message(user: User, fake_state: FakeState) -> None:
+async def test_next_with_a_backslash_host_is_ignored(user: User) -> None:
+    """`/\\evil.test/` is a host to a browser; the sign-in must not hand the person to it."""
+    await support.sign_in(user, *support.ADMIN, at="/login?next=/%5Cevil.test/")
+    await user.should_see("Sites")
+    assert user.back_history[-1] == "/"
+
+
+async def test_wrong_password_shows_the_backend_message(user: User, frontend_state: FakeState) -> None:
     await user.open("/login")
     user.find(marker="username").type(support.ADMIN[0])
     user.find(marker="password").type("not-it")
     user.find(marker="sign-in").click()
     await user.should_see("unknown username or wrong password")
     await user.should_not_see(marker="current-user")
-    assert support.session_secrets(fake_state, support.ADMIN[0]) == []
+    assert support.session_secrets(frontend_state, support.ADMIN[0]) == []
 
 
 async def test_signed_in_visitor_of_login_is_sent_on(user: User) -> None:
@@ -53,11 +60,11 @@ async def test_signed_in_visitor_of_login_is_sent_on(user: User) -> None:
     await user.should_see("Add an account")
 
 
-async def test_sign_out_ends_the_session(user: User, fake_state: FakeState) -> None:
+async def test_sign_out_ends_the_session(user: User, frontend_state: FakeState) -> None:
     await support.sign_in(user, *support.ADMIN)
-    assert len(support.session_secrets(fake_state, support.ADMIN[0])) == 1
+    assert len(support.session_secrets(frontend_state, support.ADMIN[0])) == 1
     user.find("Sign out").click()
     await user.should_see(marker="sign-in")
-    assert support.session_secrets(fake_state, support.ADMIN[0]) == []
+    assert support.session_secrets(frontend_state, support.ADMIN[0]) == []
     await user.open("/")
     await user.should_see(marker="sign-in")

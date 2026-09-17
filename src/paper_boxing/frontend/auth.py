@@ -47,11 +47,18 @@ def login_url(next_path: str | None) -> str:
 
 
 def safe_next(candidate: str | None) -> str:
-    """A return path from the query string, or "/" when it is missing or points off-site."""
-    if not candidate:
+    """A return path from the query string, or "/" when it is missing or points off-site.
+
+    Off-site: a scheme or a host, a path not starting with "/", and a second
+    character that is a slash or a backslash, since a browser reads both
+    `//evil.test/` and `/\\evil.test/` as a host, whatever `urlsplit` makes of them.
+    """
+    if not candidate or not candidate.startswith("/"):
+        return "/"
+    if len(candidate) > 1 and candidate[1] in "/\\":
         return "/"
     parts = urlsplit(candidate)
-    if parts.scheme or parts.netloc or not candidate.startswith("/") or candidate.startswith("//"):
+    if parts.scheme or parts.netloc:
         return "/"
     return candidate
 

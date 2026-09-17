@@ -15,15 +15,15 @@ from paper_boxing.common.scopes import TokenType
 from tests import frontend_support as support
 
 
-async def test_two_people_at_once(user: User, second_user: User, fake_state: FakeState) -> None:
-    fake_state.add_user("second", "second-password")
+async def test_two_people_at_once(user: User, second_user: User, frontend_state: FakeState) -> None:
+    frontend_state.add_user("second", "second-password")
     await support.sign_in(user, *support.ADMIN)
     await support.sign_in(second_user, "second", "second-password")
 
     assert user.find(marker="current-user").elements.pop().text == "admin"
     assert second_user.find(marker="current-user").elements.pop().text == "second"
-    admin_sessions = support.session_secrets(fake_state, "admin")
-    second_sessions = support.session_secrets(fake_state, "second")
+    admin_sessions = support.session_secrets(frontend_state, "admin")
+    second_sessions = support.session_secrets(frontend_state, "second")
     assert len(admin_sessions) == 1 and len(second_sessions) == 1
 
     # a site created by one is a site of the lab, listed to both
@@ -46,7 +46,7 @@ async def test_two_people_at_once(user: User, second_user: User, fake_state: Fak
     await second_user.should_see(marker="confirm-revoke")
     second_user.find(marker="confirm-revoke").click()
     await second_user.should_see("Token 'admin's agent' revoked")
-    assert all(t.revoked for t in fake_state.tokens.values() if t.type is TokenType.AGENT)
+    assert all(t.revoked for t in frontend_state.tokens.values() if t.type is TokenType.AGENT)
 
     # neither page ever carries a session token, its own or the other's
     for path in ("/", "/tokens", "/users", "/account"):
@@ -61,8 +61,8 @@ async def test_two_people_at_once(user: User, second_user: User, fake_state: Fak
     await user.should_see(marker="sign-in")
     await second_user.open("/account")
     await second_user.should_see("Signed in as second")
-    assert support.session_secrets(fake_state, "admin") == []
-    assert support.session_secrets(fake_state, "second") == second_sessions
+    assert support.session_secrets(frontend_state, "admin") == []
+    assert support.session_secrets(frontend_state, "second") == second_sessions
 
 
 async def test_a_second_browser_is_not_signed_in_by_the_first(user: User, second_user: User) -> None:
@@ -73,17 +73,17 @@ async def test_a_second_browser_is_not_signed_in_by_the_first(user: User, second
 
 
 async def test_each_request_carries_its_own_session(
-    user: User, second_user: User, fake_state: FakeState
+    user: User, second_user: User, frontend_state: FakeState
 ) -> None:
-    fake_state.add_user("second", "second-password")
+    frontend_state.add_user("second", "second-password")
     await support.sign_in(user, *support.ADMIN)
     await support.sign_in(second_user, "second", "second-password")
-    (admin_session,) = support.session_secrets(fake_state, "admin")
-    (second_session,) = support.session_secrets(fake_state, "second")
-    admin_id, second_id = fake_state.secrets[admin_session], fake_state.secrets[second_session]
-    before = len(fake_state.requests)
+    (admin_session,) = support.session_secrets(frontend_state, "admin")
+    (second_session,) = support.session_secrets(frontend_state, "second")
+    admin_id, second_id = frontend_state.secrets[admin_session], frontend_state.secrets[second_session]
+    before = len(frontend_state.requests)
     await user.open("/tokens")
     await second_user.open("/users")
     await user.open("/users")
-    routes = [(r.route, r.token_id) for r in fake_state.requests[before:]]
+    routes = [(r.route, r.token_id) for r in frontend_state.requests[before:]]
     assert routes == [("list_tokens", admin_id), ("list_users", second_id), ("list_users", admin_id)]
