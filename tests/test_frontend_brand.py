@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The ParkviewLab logo in the frontend's frame: the mark vendored whole, Michroma embedded, no network."""
+"""The ParkviewLab logo in the frontend's frame: the official file, its font embedded, nothing fetched."""
 
 from __future__ import annotations
 
@@ -10,25 +10,20 @@ import xml.etree.ElementTree as ET
 
 from paper_boxing.frontend import layout
 
-BRAND_COLOURS = {"#90b095", "#00C2C7", "#004f52"}
 
-
-def test_mark_is_the_handbook_mark_scaled() -> None:
-    svg = layout.mark_svg(64, mono=False)
+def test_logo_is_the_official_file_with_the_font_embedded() -> None:
+    svg = layout.logo_svg(60)
     root = ET.fromstring(svg)
     assert root.tag.endswith("svg")
-    assert root.attrib["height"] == "64" and root.attrib["width"] == "100"
-    assert root.attrib["viewBox"] == "60 95 280 180"
-    assert "Parkview Lab" in svg
-    fills = {el.attrib.get("fill") for el in root.iter() if el.attrib.get("fill")}
-    assert fills >= BRAND_COLOURS
+    assert root.attrib["height"] == "60" and root.attrib["width"] == "167"
+    assert root.attrib["viewBox"] == "55 100 515 185"
+    assert "Parkview Lab" in svg and "PARKVIEW" in svg and "LAB" in svg
+    assert "data:font/woff2;base64," in svg
 
 
-def test_brand_loads_nothing_from_the_network() -> None:
-    css = layout.brand_css()
-    assert "data:font/woff2;base64," in css
-    assert "fonts.googleapis" not in css and "@import" not in css and "http" not in css
-    svg = layout.mark_svg()
-    assert "#00C2C7" not in svg and "#90b095" not in svg
-    assert "http" not in svg.replace("http://www.w3.org/2000/svg", "")
-    assert "<script" not in svg
+def test_logo_loads_nothing_from_the_network() -> None:
+    for variant in ("dark", "white"):
+        svg = layout.logo_svg(variant=variant)
+        assert "fonts.googleapis" not in svg and "@import" not in svg
+        assert "http" not in svg.replace("http://www.w3.org/2000/svg", "")
+        assert "<script" not in svg

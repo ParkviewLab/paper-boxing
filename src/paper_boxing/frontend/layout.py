@@ -24,67 +24,52 @@ from nicegui import ui
 from paper_boxing.common.client import BackendError, BackendUnreachable
 from paper_boxing.frontend import auth, backend
 
-# ParkviewLab brand (the handbook's docs/brand.md): the header carries the horizontal logo the
-# website uses, built the brand's no-network way: the shapes-only mark inlined, and the wordmark
-# set in Michroma embedded from the vendored font file as data, never fetched.
+# ParkviewLab brand (the handbook's docs/brand.md): the header carries the official horizontal logo
+# from the brand's own files, dark artwork on the brand's light paper ground. The file @imports its
+# wordmark font from Google Fonts; that line is replaced at render time with the same face embedded
+# from the vendored woff2 as data, so nothing is fetched. The artwork itself is untouched.
 TEAL_DEEP = "#004f52"
 TEAL = "#00C2C7"
 SAGE = "#90b095"
+PAPER = "#f3eee2"
 _BRAND = resources.files("paper_boxing.frontend").joinpath("brand")
+_GOOGLE_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Michroma&amp;display=swap');"
 
 
-MARK_MONO = {
-    "#90b095": "rgba(255,255,255,0.38)",  # the foliage, softened so the figure reads over it
-    "#00C2C7": "#ffffff",  # the node-and-edge figure and its arcs
-    "#004f52": "rgba(0,79,82,0.9)",  # the hexagon's fill stays the ground colour so the figure reads as a cut-out
-}
+def _michroma_face() -> str:
+    font = base64.b64encode(_BRAND.joinpath("fonts", "michroma-latin.woff2").read_bytes()).decode("ascii")
+    return (
+        "@font-face{font-family:'Michroma';font-style:normal;font-weight:400;"
+        f"src:url('data:font/woff2;base64,{font}') format('woff2');}}"
+    )
 
 
-def mark_svg(height_px: int = 64, *, mono: bool = True) -> str:
-    """The ParkviewLab mark as inline SVG, cropped to its drawn extents and scaled to `height_px` tall.
+def logo_svg(height_px: int = 60, *, variant: str = "dark") -> str:
+    """The official horizontal logo as inline SVG at `height_px` tall, its font embedded instead of imported.
 
-    The vendored file draws inside a 400-unit square with wide margins (its content spans roughly
-    x 60..340 and y 95..275 of that box); cropping the viewBox lets the mark sit at the wordmark's
-    height without the empty margin. With `mono`, the three brand colours are re-mapped to white
-    for the deep-teal header; the file itself is unchanged either way.
+    `variant` is "dark" (dark artwork, for a light ground) or "white" (for a dark ground), the two
+    black-and-white files the brand provides.
     """
-    svg = _BRAND.joinpath("parkview_lab_mark.svg").read_text()
-    width_px = round(height_px * 280 / 180)
-    svg = svg.replace(
-        'width="400" height="400" viewBox="0 0 400 400"',
-        f'width="{width_px}" height="{height_px}" viewBox="60 95 280 180"',
+    svg = _BRAND.joinpath(f"parkview_lab_bw_horizontal_{variant}.svg").read_text()
+    if _GOOGLE_IMPORT not in svg:
+        raise RuntimeError("the vendored logo no longer carries the font import this code replaces")
+    svg = svg.replace(_GOOGLE_IMPORT, _michroma_face(), 1)
+    # The file composes the logo inside a 680 by 440 box with wide margins; the artwork itself spans
+    # about x 55..570 and y 100..285. Cropping the viewBox to that keeps the drawing untouched and
+    # lets it fill the header's height.
+    box = (55, 100, 515, 185)
+    width_px = round(height_px * box[2] / box[3])
+    return svg.replace(
+        'width="680" height="440" viewBox="0 0 680 440"',
+        f'width="{width_px}" height="{height_px}" viewBox="{box[0]} {box[1]} {box[2]} {box[3]}"',
         1,
     )
-    if mono:
-        for colour, replacement in MARK_MONO.items():
-            svg = svg.replace(f'"{colour}"', f'"{replacement}"')
-    return svg
-
-
-def brand_css() -> str:
-    """The @font-face for Michroma (embedded as base64 woff2) and the wordmark's rules."""
-    font = base64.b64encode(_BRAND.joinpath("fonts", "michroma-latin.woff2").read_bytes()).decode("ascii")
-    return f"""<style>
-@font-face {{ font-family: 'Michroma'; font-style: normal; font-weight: 400; font-display: swap;
-  src: url('data:font/woff2;base64,{font}') format('woff2'); }}
-.pb-wordmark {{ font-family: 'Michroma', ui-sans-serif, system-ui, sans-serif; color: #fff; line-height: 1;
-  display: flex; flex-direction: column; gap: 4px; }}
-.pb-wordmark .pb-park {{ font-size: 15.5px; letter-spacing: 0.06em; }}
-.pb-wordmark .pb-rule {{ height: 2px; background: {TEAL}; width: 100%; }}
-.pb-wordmark .pb-lab {{ font-size: 8.5px; letter-spacing: 0.32em; }}
-.pb-app {{ color: rgba(255,255,255,0.85); font-size: 15px; letter-spacing: 0.02em; }}
-</style>"""
 
 
 def logo() -> None:
-    """The horizontal logo: the mark beside the PARKVIEW / LAB wordmark, linking to the sites page."""
-    with ui.link(target="/").classes("no-underline"), ui.row().classes("items-center gap-3"):
-        ui.html(mark_svg(), sanitize=False).classes("flex").mark("brand-mark")
-        ui.html(
-            '<div class="pb-wordmark"><span class="pb-park">PARKVIEW</span>'
-            '<span class="pb-rule"></span><span class="pb-lab">LAB</span></div>',
-            sanitize=False,
-        ).mark("brand-wordmark")
+    """The horizontal logo, linking to the sites page."""
+    with ui.link(target="/").classes("no-underline flex"):
+        ui.html(logo_svg(), sanitize=False).classes("flex").mark("brand-logo")
 
 
 NAV: tuple[tuple[str, str], ...] = (
@@ -100,17 +85,20 @@ def frame(title: str) -> Iterator[None]:
     """The header with the navigation and the signed-in person, then a centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
     ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
-    ui.add_head_html(brand_css())
-    with ui.header().classes("items-center justify-between px-6 py-2").style(f"background:{TEAL_DEEP}"):
+    with (
+        ui.header()
+        .classes("items-center justify-between px-6 py-1")
+        .style(f"background:{PAPER}; color:{TEAL_DEEP}; border-bottom:2px solid {TEAL}")
+    ):
         with ui.row().classes("items-center gap-8"):
             logo()
-            ui.label("paper-boxing").classes("pb-app")
+            ui.label("paper-boxing").style(f"color:{TEAL_DEEP}; opacity:.8; letter-spacing:.02em")
             for text, path in NAV:
-                ui.link(text, path).classes("text-white no-underline")
+                ui.link(text, path).classes("no-underline").style(f"color:{TEAL_DEEP}")
         with ui.row().classes("items-center gap-2"):
-            ui.icon("person").classes("text-white")
-            ui.label(auth.username()).classes("text-white").mark("current-user")
-            ui.button("Sign out", icon="logout", on_click=sign_out).props("flat dense no-caps color=white")
+            ui.icon("person").style(f"color:{TEAL_DEEP}")
+            ui.label(auth.username()).style(f"color:{TEAL_DEEP}").mark("current-user")
+            ui.button("Sign out", icon="logout", on_click=sign_out).props("flat dense no-caps color=primary")
     with ui.column().classes("w-full max-w-5xl mx-auto p-6 gap-4"):
         ui.label(title).classes("text-2xl font-medium")
         yield
