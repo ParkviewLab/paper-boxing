@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 """Accounts, sessions and agent tokens: the authentication model of
-docs/design.md section 4.
+docs/architecture.md, "Authentication".
 
 - A password is stored only as an argon2id hash (argon2-cffi: a random salt
   per hash, the cost settings inside the encoded string). At sign-in, a hash

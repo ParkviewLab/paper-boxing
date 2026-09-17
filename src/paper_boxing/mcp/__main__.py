@@ -5,8 +5,8 @@
 """Entrypoint: `python -m paper_boxing.mcp` -> uvicorn.
 
 Streamable HTTP only. There is no stdio transport: the server runs in the
-stack on the home-lab host for every machine on the LAN (docs/design.md
-section 3).
+stack on the home-lab host for every machine on the LAN (docs/architecture.md,
+"The MCP server").
 """
 
 import logging

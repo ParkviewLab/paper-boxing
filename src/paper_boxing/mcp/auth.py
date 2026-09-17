@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The three safeguards against token passthrough (docs/design.md section 4a).
+"""The three safeguards against token passthrough (docs/architecture.md, "The MCP server").
 
 `TokenGate` is the ASGI callable behind `/mcp`, in front of the Streamable-HTTP
 transport. Every POST needs a bearer, the handshake included: an MCP client

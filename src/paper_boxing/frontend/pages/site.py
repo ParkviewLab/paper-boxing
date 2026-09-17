@@ -6,7 +6,7 @@
 files into the folder being viewed, download, replace and delete a file, and
 delete a folder with an explicit recursive confirmation.
 
-Uploads are single-file at the API (docs/design.md section 4): when several
+Uploads are single-file at the API (docs/decisions.md, 2026-09-17): when several
 files are picked at once, the page sends them one after another against
 `PUT /sites/{slug}/files/{path}` and shows a result per file. The results of
 the last upload are kept in `app.storage.tab`, so they survive a reload of

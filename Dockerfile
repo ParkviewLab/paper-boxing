@@ -2,10 +2,11 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-# One Dockerfile, three images (docs/design.md section 3): a shared base with
-# the uv python3.13 slim image and the project files, then one target per
-# component. Each target installs only its own extra, exposes its own port,
-# checks its own /health, and runs `python -m paper_boxing.<component>`.
+# One Dockerfile, three images (docs/architecture.md, "The package and the
+# images"): a shared base with the uv python3.13 slim image and the project
+# files, then one target per component. Each target installs only its own
+# extra, exposes its own port, checks its own /health, and runs
+# `python -m paper_boxing.<component>`.
 #
 #   docker build --target backend  -t paper-boxing-backend  .
 #   docker build --target frontend -t paper-boxing-frontend .

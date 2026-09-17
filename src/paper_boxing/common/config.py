@@ -25,7 +25,7 @@ except PackageNotFoundError:  # editable install before first build
 # (a container must bind every interface to be reachable).
 DEFAULT_HOST = "127.0.0.1"
 
-# Published ports, decided in docs/design.md section 2. Each image listens on
+# Published ports (docs/decisions.md, 2026-09-15). Each image listens on
 # its own number inside the container as well.
 FRONTEND_PORT = 35840
 SITES_PORT = 35841

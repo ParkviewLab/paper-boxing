@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The three safeguards against token passthrough (docs/design.md section 4a), as `auth.py` keeps them.
+"""The three safeguards against token passthrough (docs/architecture.md, "The MCP server"), as `auth.py` keeps them.
 
 Every POST to /mcp needs a bearer, the handshake included, and every bearer
 is confirmed with the backend before a tool runs; nothing is kept between

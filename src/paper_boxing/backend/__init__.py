@@ -4,4 +4,4 @@
 
 """The backend: the only writer of files and of the database, and the one
 implementation of every rule. Serves the REST API under /api/v1; see
-docs/api.md for the contract and docs/design.md section 4 for the design."""
+docs/api.md for the contract and docs/architecture.md for the design."""

@@ -4,7 +4,7 @@
 
 """The one shared object of the frontend: a stateless `httpx.AsyncClient`
 wrapped in `BackendClient`, created at startup and closed at shutdown
-(docs/design.md section 5).
+(docs/architecture.md, "The frontend").
 
 Nothing per user lives here. Every call passes the caller's session token
 explicitly, so one client serves every signed-in person at once, and a test

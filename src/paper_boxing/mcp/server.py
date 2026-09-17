@@ -10,7 +10,7 @@ only; GET and DELETE answer 405), transport security on, CORS limited to the
 same origin allowlist, gzip, and the ops endpoints.
 
 The ASGI callable at `/mcp` is `auth.TokenGate`, the three safeguards of
-docs/design.md section 4a: every request's bearer is confirmed with the
+docs/architecture.md, "The MCP server": every request's bearer is confirmed with the
 backend before the transport sees the request, nothing is kept between
 requests, and only an agent token passes. The handlers below read that
 confirmation from the HTTP request the SDK exposes as

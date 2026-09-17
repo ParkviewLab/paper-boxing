@@ -4,8 +4,8 @@
 
 """Permission tiers for the MCP tool surface.
 
-The scope is a property of the confirmed agent token (docs/design.md section
-4a), not of the server, so there is no server-wide scope variable. The tiers
+The scope is a property of the confirmed agent token (docs/architecture.md,
+"The MCP server"), not of the server, so there is no server-wide scope variable. The tiers
 themselves are the contract's, shared with the backend's token scopes:
 `paper_boxing.common.scopes`. This module re-exports them under the handbook's
 module name so the MCP subpackage keeps the standard layout.

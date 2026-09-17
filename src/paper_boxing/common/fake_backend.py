@@ -5,10 +5,10 @@
 """An in-memory backend that implements the REST contract, for tests.
 
 The frontend's and the MCP server's test suites run against this app instead
-of the real backend (docs/design.md section 7), through
+of the real backend (docs/architecture.md, "Tests"), through
 `httpx.ASGITransport(app=create_fake_backend())` or FastAPI's `TestClient`.
-tests/contract/ exercises it route by route; the backend worker points the
-same suite at the real app, which is how the two are kept identical.
+tests/contract/ exercises it route by route and runs the same suite against
+the real app, which is how the two are kept identical.
 
 It is a faithful model, not a stub: every access rule, every status code and
 every error code of docs/api.md, sliding session expiry (with a controllable

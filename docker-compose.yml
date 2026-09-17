@@ -92,11 +92,12 @@ services:
       - "host.docker.internal:host-gateway"
 
   sites:
-    # A stock nginx serving /data/sites read-only (docs/design.md section 6). Its
-    # configuration is inline below, so the stack is one file that can be pasted into
-    # Portainer's web editor. The whole data volume is mounted read-only and `root`
-    # points at its sites/ tree, so nothing outside that tree is reachable over HTTP
-    # and the mount works on every Docker version (a volume subpath needs Docker 26+).
+    # A stock nginx serving /data/sites read-only (docs/architecture.md, "The site
+    # server"). Its configuration is inline below, so the stack is one file that can
+    # be pasted into Portainer's web editor. The whole data volume is mounted
+    # read-only and `root` points at its sites/ tree, so nothing outside that tree
+    # is reachable over HTTP and the mount works on every Docker version (a volume
+    # subpath needs Docker 26+).
     image: nginx:stable-alpine
     container_name: paper-boxing-sites
     restart: unless-stopped
