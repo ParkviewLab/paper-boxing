@@ -68,7 +68,7 @@ async def page() -> RedirectResponse | None:
         def user_row(user: User) -> None:
             mine = user.id == auth.user_id()
             with (
-                ui.card().classes("w-full").mark("user-row"),
+                ui.card().classes("w-full").mark("user-row", f"user-{user.id}"),
                 ui.row().classes("items-center justify-between w-full"),
             ):
                 with ui.column().classes("gap-1"):

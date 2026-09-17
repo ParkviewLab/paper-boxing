@@ -94,7 +94,7 @@ async def page() -> RedirectResponse | None:
 
         def token_row(item: Token) -> None:
             with (
-                ui.card().classes("w-full").mark("token-row"),
+                ui.card().classes("w-full").mark("token-row", f"token-{item.id}"),
                 ui.row().classes("items-center justify-between w-full"),
             ):
                 with ui.column().classes("gap-1"):

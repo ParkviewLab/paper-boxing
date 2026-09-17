@@ -16,8 +16,10 @@ from dataclasses import dataclass
 import httpx
 from fastapi import FastAPI
 from nicegui import core
+from nicegui.storage import request_contextvar
 from nicegui.testing import User
 
+from paper_boxing.common.client import BackendClient
 from paper_boxing.common.fake_backend import FakeState
 
 ADMIN = ("admin", "admin-password")
@@ -46,6 +48,17 @@ def new_user(*, cookies: httpx.Cookies | None = None) -> User:
     return User(http)
 
 
+def act(user: User) -> User:
+    """Point NiceGUI's request context at `user` before an interaction, as the browser's socket event would.
+
+    `nicegui.testing`'s `UserInteraction` calls the handler directly and skips `Element._handle_event`, which
+    restores the listener's own request; so with two simulated users interleaving requests, the ambient
+    request (and with it `app.storage.user`) would be whichever user made the last HTTP request.
+    """
+    request_contextvar.set(user.client.request)
+    return user
+
+
 async def sign_in(user: User, username: str, password: str, *, at: str = "/") -> None:
     """Sign a simulated user in through the login page and wait for the requested page."""
     await user.open(at)
@@ -71,3 +84,36 @@ def session_secrets(state: FakeState, username: str) -> list[str]:
 def page_text(user: User) -> str:
     """Everything the user's page currently renders, for asserting what is not there."""
     return str(user.current_layout)
+
+
+async def seed(username: str = ADMIN[0]) -> tuple[BackendClient, str, FakeState]:
+    """A client on the fake backend with a session for `username`, for arranging state behind the page.
+
+    Close it with `unseed()` so the extra session does not show up in what the tests count.
+    """
+    h = current()
+    token = h.state.issue_session(username)
+    http = httpx.AsyncClient(transport=httpx.ASGITransport(app=h.app), base_url="http://backend")
+    return BackendClient(http), token, h.state
+
+
+async def unseed(client: BackendClient, token: str) -> None:
+    await client.logout(token)
+    await client.aclose()
+
+
+async def seed_site(name: str, files: dict[str, bytes] | None = None) -> str:
+    """A site with `files` (path -> content) in the fake backend; returns its slug."""
+    client, token, _ = await seed()
+    site = await client.create_site(token, name)
+    for path, content in (files or {}).items():
+        await client.upload_file(token, site.slug, path, content)
+    await unseed(client, token)
+    return site.slug
+
+
+async def file_content(slug: str, path: str) -> bytes | None:
+    """The bytes of a file in the fake backend, or None when it is not there."""
+    site = current().state.sites[slug]
+    entry = site.files.get(path)
+    return None if entry is None else entry.content

@@ -77,7 +77,7 @@ async def page() -> RedirectResponse | None:
         def site_row(site: Site) -> None:
             url = site_url(public_sites_url, site.slug)
             with (
-                ui.card().classes("w-full").mark("site-row"),
+                ui.card().classes("w-full").mark("site-row", f"site-{site.slug}"),
                 ui.row().classes("items-center justify-between w-full"),
             ):
                 with ui.column().classes("gap-1"):

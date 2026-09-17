@@ -144,7 +144,7 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                             return
                         note = layout.error_text(err)
                         if err.code == "file_exists":
-                            note += " Tick Overwrite existing files and upload it again to replace it."
+                            note = f"{note.rstrip('.')}. Tick Overwrite existing files and upload it again to replace it."
                         results.append({"path": target, "ok": False, "note": note})
                     else:
                         verb = "replaced" if result.replaced else "uploaded"
@@ -174,18 +174,22 @@ async def page(slug: str, path: str = "") -> RedirectResponse | None:
                     return
                 layout.report_error(e)
                 return
-            with ui.card().classes("w-full gap-1"):
+            with ui.card().classes("w-full gap-1").mark("listing"):
                 ui.label(f"Contents of {folder or 'the site root'}").classes("text-lg")
                 if not entries:
                     ui.label("Nothing here yet.").classes("text-grey-7").mark("empty-folder")
                     return
-                for entry in entries:
-                    entry_row(entry)
+                for index, entry in enumerate(entries):
+                    entry_row(entry, index)
 
-        def entry_row(entry: FileEntry) -> None:
+        def entry_row(entry: FileEntry, index: int) -> None:
             full = f"{folder}/{entry.name}" if folder else entry.name
             is_folder = entry.type is EntryType.FOLDER
-            with ui.row().classes("items-center justify-between w-full py-1").mark("entry-row"):
+            with (
+                ui.row()
+                .classes("items-center justify-between w-full py-1")
+                .mark("entry-row", f"entry-{index}")
+            ):
                 with ui.row().classes("items-center gap-3"):
                     ui.icon("folder" if is_folder else "description").classes("text-grey-7")
                     if is_folder:
