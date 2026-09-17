@@ -8,7 +8,7 @@ SPDX-PackageName = "paper-boxing"
 SPDX-PackageSupplier = "Gary Frattarola <garyf@parkviewlab.ai>"
 
 [[annotations]]
-path = [".gitignore", ".dockerignore", ".python-version", ".env.example", "uv.lock"]
+path = [".gitignore", ".dockerignore", ".python-version", ".env.example", "tests/integration/integration.env", "uv.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
 SPDX-License-Identifier = "MIT OR Apache-2.0"
