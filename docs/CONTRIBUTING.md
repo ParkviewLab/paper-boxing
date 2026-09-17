@@ -57,6 +57,8 @@ docker compose -f docker-compose.yml -f tests/integration/compose.build.yml --en
 
 In a git worktree (the handbook's layout), `reuse lint` does not apply the repository's ignore rules, so delete `__pycache__` directories before running it: `find . -name __pycache__ -type d -prune -not -path './.venv/*' -exec rm -rf {} +`.
 
+The contract suite's `real` leg runs the backend over a temporary directory and assumes a case-sensitive filesystem, as CI's Linux is. On macOS's default case-insensitive filesystem two paths that differ only by case name the same file; that is a limitation of local development, not a defect.
+
 ## The contract between the components
 
 `docs/api.md` and `src/paper_boxing/common/` fix the REST API and the MCP tools that the backend, the frontend and the MCP server share. A change to the contract changes both the document and the code in the same PR, and `tests/contract/` proves the fake backend and the real one identical. `tests/test_import_boundaries.py` keeps the components apart: `common` imports no component, and no component imports another.

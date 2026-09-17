@@ -42,6 +42,15 @@ ADMIN = ("admin", "admin-password")
 def backend_client(tmp_path_factory: pytest.TempPathFactory) -> Iterator[TestClient]:
     data_dir = tmp_path_factory.mktemp("paper-boxing-data")
     os.environ["PAPER_BOXING_DATA_DIR"] = str(data_dir)
+    # The module-level app reads the environment at import: an ambient admin pair or setting that
+    # the backend refuses would fail these tests for a reason of the shell's, so none reaches it.
+    for name in (
+        "PAPER_BOXING_ADMIN_USERNAME",
+        "PAPER_BOXING_ADMIN_PASSWORD",
+        "PAPER_BOXING_MAX_UPLOAD_MB",
+        "PAPER_BOXING_SESSION_DAYS",
+    ):
+        os.environ.pop(name, None)
     if "paper_boxing.backend.app" in sys.modules:
         importlib.reload(sys.modules["paper_boxing.backend.app"])
     from paper_boxing.backend.app import app

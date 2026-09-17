@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from paper_boxing.backend.clock import Clock
 from paper_boxing.common.fake_backend import FakeState
 from paper_boxing.common.schema import ErrorBody, ErrorCode, TokenCreated, TokenList, TokenSelf
 from tests.contract.conftest import ADMIN, Actors, bearer
@@ -71,12 +72,12 @@ def test_agent_tokens_cannot_manage_tokens_or_users(api: TestClient, actors: Act
         assert _code(resp) is ErrorCode.SESSION_REQUIRED
 
 
-def test_last_used_is_recorded(api: TestClient, actors: Actors, fake: FakeState) -> None:
+def test_last_used_is_recorded(api: TestClient, actors: Actors, clock: Clock) -> None:
     s = bearer(actors.session)
     before = TokenList.model_validate(api.get("/api/v1/tokens", headers=s).json()).tokens
     ro = next(t for t in before if t.id == actors.read_only_id)
     assert ro.last_used_at is None
-    fake.clock.advance(60)
+    clock.advance(60)
     api.get("/api/v1/sites", headers=bearer(actors.read_only))
     after = TokenList.model_validate(api.get("/api/v1/tokens", headers=s).json()).tokens
     ro = next(t for t in after if t.id == actors.read_only_id)
