@@ -8,11 +8,11 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 A small site manager for a private home lab: named sites of static files served unchanged on the LAN, a web UI for people, and an MCP server for agents, all in Docker.
 
-paper-boxing is where a project's documents live during early design and specification, before the project has a repository and a release, and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change.
+paper-boxing is where a project's documents live during early design and specification, before its first release, and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change. Several people can have accounts, all of equal standing: any account may create sites, tokens and other accounts, and may remove any of them, except the last account. There are two kinds of token: a session, issued when a person signs in to the UI, and an agent token, which a signed-in person creates in the UI with a scope; an agent is any MCP client holding one, such as a Claude Code session.
 
 ## Status
 
-Under construction, ahead of the first release. The backend's REST API, the frontend's pages and the MCP server's tools are built against the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request; no image has been published yet. The design is [`docs/design.md`](docs/design.md) and the intent [`docs/northstar.md`](docs/northstar.md).
+Released: [v0.1.0](https://github.com/ParkviewLab/paper-boxing/releases/tag/v0.1.0). The three paper-boxing images are on GHCR for `linux/amd64` and `linux/arm64`, each tagged `X.Y.Z`, `X.Y` and `latest`. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
 
 Four containers make a deployment:
 
@@ -27,7 +27,9 @@ All three paper-boxing images are built from one commit and carry one version.
 
 ## Run
 
-paper-boxing runs in Docker, either with `docker compose` or as a Portainer stack; there is no PyPI package. [`docs/deployment.md`](docs/deployment.md) is the full guide: building the images, every variable, first sign-in, updating, backing up, connecting an MCP client.
+paper-boxing runs in Docker, either with `docker compose` or as a Portainer stack; there is no PyPI package. [`docs/deployment.md`](docs/deployment.md) is the full guide: the compose file service by service, every variable, first sign-in, updating, backing up, connecting an MCP client, building the images from a checkout.
+
+`.env` holds, among the variables the Configuration tables below describe, the admin pair (`PAPER_BOXING_ADMIN_USERNAME` and `PAPER_BOXING_ADMIN_PASSWORD`, from which the backend creates the first account when none exists) and the allowed hosts (`PAPER_BOXING_MCP_ALLOWED_HOSTS`, the `Host` values with which agents connect to the MCP server).
 
 ```bash
 cp .env.example .env          # set the public sites URL, the admin password, the storage secret and the MCP allowed hosts
@@ -44,11 +46,11 @@ Links inside a site work when they are relative to the site; a link from the hos
 
 ## Endpoints
 
-Backend, port 35843: the REST API under `/api/v1` ([`docs/api.md`](docs/api.md)), `GET /health`, `GET /admin/version`, `GET /docs`.
+Backend, port 35843: the REST API under `/api/v1` ([`docs/api.md`](docs/api.md)), `GET /health`, `GET /admin/version`, `GET /docs`, `GET /openapi.json`.
 
 Frontend, port 35840: the pages `/login`, `/` (sites), `/sites/<slug>` (with `?path=<folder>` for a folder), `/tokens`, `/users`, `/account`; `GET /download/<slug>/<path>`, which streams a file from the backend with the signed-in person's session, since the browser never holds the session token; `GET /health`, `GET /admin/version`. A request for a page without a session is sent to `/login` and back afterwards; a download without one gets a 401 in the API's error shape, never the sign-in page. The session lives in NiceGUI's per-browser storage on the frontend (`.nicegui/` under the working directory), so a re-created frontend container asks everyone to sign in again.
 
-MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405, and the old `/sse` path answers 405 naming `/mcp`), `GET /health`, `GET /admin/version`, `GET /docs`.
+MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405), `/sse` (the old HTTP+SSE path: `GET`, `POST` and `DELETE` answer 405 with a body naming `/mcp`, any other method gets the framework's 405), `GET /health`, `GET /admin/version`, `GET /docs`, `GET /openapi.json`.
 
 Site server, port 35841: `GET /<site>/...`, the files as uploaded. A folder with no `index.html` shows nginx's listing.
 
@@ -79,18 +81,17 @@ Tool calls carry files up to `PAPER_BOXING_MCP_MAX_FILE_MB` (default 8 MiB). A l
 
 ## Configuration
 
-Every variable is read from the environment at startup. `HOST` defaults to `127.0.0.1` in code; the images set `0.0.0.0`.
+Every variable is read from the environment at startup. All three services read `HOST`, the bind address, which defaults to `127.0.0.1` in code and is set to `0.0.0.0` by the images, and `PORT`, each service's own number.
 
 Backend:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `HOST` | `127.0.0.1` (image: `0.0.0.0`) | bind address |
 | `PORT` | `35843` | listen port |
 | `PAPER_BOXING_DATA_DIR` | `./data` (image: `/data`) | the volume: `sites/`, `staging/`, `paper-boxing.sqlite3` |
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | the site server's address as people and links reach it; every site's URL is built from it |
-| `PAPER_BOXING_ADMIN_USERNAME` | unset | the first account, created only when no account exists; the same rules as any account (`[A-Za-z0-9][A-Za-z0-9._-]*`, at most 64 characters) |
-| `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password, at least 8 characters; ignored once an account exists. While no account exists, an invalid pair stops the backend from starting |
+| `PAPER_BOXING_ADMIN_USERNAME` | unset in code; `admin` in the compose file | the first account, created only when no account exists, under the rules of any account (`POST /api/v1/users` in [`docs/api.md`](docs/api.md#routes)) |
+| `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password, at least 8 characters; ignored once an account exists. While no account exists, an invalid pair stops the backend from starting, and an unset pair lets it start with a logged warning and nobody able to sign in |
 | `PAPER_BOXING_MAX_UPLOAD_MB` | `200` | size cap of one uploaded file, in MiB; at least 1 |
 | `PAPER_BOXING_SESSION_DAYS` | `14` | sliding expiry of a UI session, in days; at least 1 |
 
@@ -98,7 +99,6 @@ Frontend:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `HOST` | `127.0.0.1` (image: `0.0.0.0`) | bind address |
 | `PORT` | `35840` | listen port |
 | `PAPER_BOXING_BACKEND_URL` | `http://127.0.0.1:35843` | the backend (`http://backend:35843` in the stack) |
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | as for the backend |
@@ -108,7 +108,6 @@ MCP server:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `HOST` | `127.0.0.1` (image: `0.0.0.0`) | bind address |
 | `PORT` | `35842` | listen port |
 | `PAPER_BOXING_BACKEND_URL` | `http://127.0.0.1:35843` | the backend |
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | as for the backend |
@@ -121,19 +120,24 @@ There is no shared static token: an agent authenticates with an agent token that
 
 ## Releasing
 
-Tag-driven via the `Release` workflow on push of a `v*` tag. Use the [`ParkviewLab/dev-tools`](https://github.com/ParkviewLab/dev-tools) helpers; `pyproject.toml` is the only place the version lives, and the workflow's gate refuses a tag that does not match it.
+Tag-driven via the `Release` workflow on push of a `v*` tag. Use the [`ParkviewLab/dev-tools`](https://github.com/ParkviewLab/dev-tools) helpers; `pyproject.toml` is the only place the version lives, and the workflow's gate refuses a tag that does not match it. A release runs from the `paper-boxing-main` worktree, in the handbook's flow:
 
 ```sh
-git bump patch              # X.Y.Z → X.Y.(Z+1), committed
-git release                 # annotated tag vX.Y.(Z+1) from pyproject.toml
-git push --follow-tags      # CI fires
+git pull --ff-only                              # sync main
+git -C ../paper-boxing-develop pull --ff-only   # sync develop: the merge below takes the local branch
+git merge --no-ff develop                       # promote develop to main; the merge commit is the release ledger entry
+git bump <patch|minor|major>                    # bumps pyproject.toml and commits "release vX.Y.Z"
+git release                                     # annotated tag vX.Y.Z from pyproject.toml
+git push --follow-tags                          # the tag push fires the workflow
 ```
+
+Once the workflow is green, the back-merge cascade brings `main`'s release and changelog commits down: `main` into `develop` with `--no-ff` (`git -C ../paper-boxing-develop merge --no-ff main`), then `develop` into each open working branch, and `develop` opens the next development cycle (`X.Y.(Z+1).dev0` in `pyproject.toml`).
 
 The workflow runs a **gate** (tag equals the version, tag reachable from `main`, version greater than the previous tag), then a **docker** matrix that builds and pushes the three images for amd64 and arm64 with the `X.Y.Z`, `X.Y` and `latest` tags, then a **changelog** job that writes the new [`CHANGELOG.md`](CHANGELOG.md) section (an LLM-written Highlights paragraph plus [`git-cliff`](https://git-cliff.org/)'s categorized list), commits it to `main`, and creates the GitHub Release. There is no PyPI publish.
 
 ### Commit message convention
 
-PRs are squash-merged with the PR title as the commit subject, so the PR title carries the [Conventional Commit](https://www.conventionalcommits.org/) prefix that [`cliff.toml`](cliff.toml) reads: `feat:` and `fix:` and `perf:` are user-visible sections, `refactor:`, `docs:` and `test:` have their own, and `chore:`, `ci:`, `build:` and `style:` are dropped from the changelog but stay in history. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+PRs are squash-merged with the PR title as the commit subject, so the PR title carries the [Conventional Commit](https://www.conventionalcommits.org/) prefix that [`cliff.toml`](cliff.toml) reads: `feat:` and `fix:` and `perf:` are user-visible sections, `refactor:`, `docs:` and `test:` have their own, and `chore:`, `ci:`, `build:` and `style:` are dropped from the changelog but stay in history; merge commits are dropped as well, and a `Revert` commit goes to a Reverts section. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 ## License
 
@@ -144,7 +148,7 @@ Licensed under either of
 
 at your option. In SPDX terms: `MIT OR Apache-2.0`.
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work by you shall be dual-licensed as above, without any additional terms or conditions. See [LICENSING.md](LICENSING.md).
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work by you shall be dual-licensed as above, without any additional terms or conditions. See [LICENSING.md](LICENSING.md), which also names the two vendored assets outside this dual licence: the ParkviewLab brand files, all rights reserved, and the Michroma font, under OFL-1.1.
 
 ---
 <sub>© 2026 Gary Frattarola · Licensed under [MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE) · part of [ParkviewLab](https://github.com/ParkviewLab)</sub>
