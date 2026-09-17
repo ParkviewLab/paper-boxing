@@ -12,6 +12,7 @@ element and no per-user value is created at import time.
 
 from __future__ import annotations
 
+import base64
 import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
@@ -23,17 +24,55 @@ from nicegui import ui
 from paper_boxing.common.client import BackendError, BackendUnreachable
 from paper_boxing.frontend import auth, backend
 
-# ParkviewLab brand (the handbook's docs/brand.md): the header carries the deep teal and the
-# shapes-only mark, which has no font dependency and is vendored under its own licence.
+# ParkviewLab brand (the handbook's docs/brand.md): the header carries the horizontal logo the
+# website uses, built the brand's no-network way: the shapes-only mark inlined, and the wordmark
+# set in Michroma embedded from the vendored font file as data, never fetched.
 TEAL_DEEP = "#004f52"
 TEAL = "#00C2C7"
 SAGE = "#90b095"
+_BRAND = resources.files("paper_boxing.frontend").joinpath("brand")
 
 
-def mark_svg(size_px: int = 44) -> str:
-    """The ParkviewLab mark as inline SVG, scaled to `size_px` square, with its title kept."""
-    svg = resources.files("paper_boxing.frontend").joinpath("brand", "parkview_lab_mark.svg").read_text()
-    return svg.replace('width="400" height="400"', f'width="{size_px}" height="{size_px}"', 1)
+def mark_svg(height_px: int = 56) -> str:
+    """The ParkviewLab mark as inline SVG, cropped to its drawn extents and scaled to `height_px` tall.
+
+    The vendored file draws inside a 400-unit square with wide margins (its content spans roughly
+    x 60..340 and y 95..275 of that box); cropping the viewBox lets the mark sit at the wordmark's
+    height without the empty margin, and the file itself is unchanged.
+    """
+    svg = _BRAND.joinpath("parkview_lab_mark.svg").read_text()
+    width_px = round(height_px * 280 / 180)
+    return svg.replace(
+        'width="400" height="400" viewBox="0 0 400 400"',
+        f'width="{width_px}" height="{height_px}" viewBox="60 95 280 180"',
+        1,
+    )
+
+
+def brand_css() -> str:
+    """The @font-face for Michroma (embedded as base64 woff2) and the wordmark's rules."""
+    font = base64.b64encode(_BRAND.joinpath("fonts", "michroma-latin.woff2").read_bytes()).decode("ascii")
+    return f"""<style>
+@font-face {{ font-family: 'Michroma'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('data:font/woff2;base64,{font}') format('woff2'); }}
+.pb-wordmark {{ font-family: 'Michroma', ui-sans-serif, system-ui, sans-serif; color: #fff; line-height: 1;
+  display: flex; flex-direction: column; gap: 6px; }}
+.pb-wordmark .pb-park {{ font-size: 22px; letter-spacing: 0.06em; }}
+.pb-wordmark .pb-rule {{ height: 2px; background: {TEAL}; width: 100%; }}
+.pb-wordmark .pb-lab {{ font-size: 12px; letter-spacing: 0.32em; }}
+.pb-app {{ color: rgba(255,255,255,0.85); font-size: 15px; letter-spacing: 0.02em; }}
+</style>"""
+
+
+def logo() -> None:
+    """The horizontal logo: the mark beside the PARKVIEW / LAB wordmark, linking to the sites page."""
+    with ui.link(target="/").classes("no-underline"), ui.row().classes("items-center gap-3"):
+        ui.html(mark_svg(), sanitize=False).classes("flex").mark("brand-mark")
+        ui.html(
+            '<div class="pb-wordmark"><span class="pb-park">PARKVIEW</span>'
+            '<span class="pb-rule"></span><span class="pb-lab">LAB</span></div>',
+            sanitize=False,
+        ).mark("brand-wordmark")
 
 
 NAV: tuple[tuple[str, str], ...] = (
@@ -49,11 +88,11 @@ def frame(title: str) -> Iterator[None]:
     """The header with the navigation and the signed-in person, then a centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
     ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
-    with ui.header().classes("items-center justify-between px-4 py-1").style(f"background:{TEAL_DEEP}"):
-        with ui.row().classes("items-center gap-6"):
-            with ui.link(target="/").classes("no-underline"), ui.row().classes("items-center gap-2"):
-                ui.html(mark_svg(), sanitize=False).classes("flex").mark("brand-mark")
-                ui.label("paper-boxing").classes("text-lg font-semibold text-white")
+    ui.add_head_html(brand_css())
+    with ui.header().classes("items-center justify-between px-6 py-2").style(f"background:{TEAL_DEEP}"):
+        with ui.row().classes("items-center gap-8"):
+            logo()
+            ui.label("paper-boxing").classes("pb-app")
             for text, path in NAV:
                 ui.link(text, path).classes("text-white no-underline")
         with ui.row().classes("items-center gap-2"):
