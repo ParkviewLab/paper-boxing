@@ -8,11 +8,11 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 A small site manager for a private home lab: named sites of static files served unchanged on the LAN, a web UI for people, and an MCP server for agents, all in Docker.
 
-paper-boxing is where a project's documents live during early design and specification, before its first release, and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change. Several people can have accounts, all of equal standing: any account may create sites, tokens and other accounts, and may remove any of them, except the last account. There are two kinds of token: a session, issued when a person signs in to the UI, and an agent token, which a signed-in person creates in the UI with a scope; an agent is any MCP client holding one, such as a Claude Code session.
+paper-boxing is where a project's documents live during early design and specification, before its first release, where a project that has a repository previews its documentation site before the release that publishes it (the site build's output uploaded as a site), and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change. Several people can have accounts, all of equal standing: any account may create sites, tokens and other accounts, and may remove any of them, except the last account. There are two kinds of token: a session, issued when a person signs in to the UI, and an agent token, which a signed-in person creates in the UI with a scope; an agent is any MCP client holding one, such as a Claude Code session.
 
 ## Status
 
-Released: [v0.1.0](https://github.com/ParkviewLab/paper-boxing/releases/tag/v0.1.0). The three paper-boxing images are on GHCR for `linux/amd64` and `linux/arm64`, each tagged `X.Y.Z`, `X.Y` and `latest`. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
+Released: [v0.1.0](https://github.com/ParkviewLab/paper-boxing/releases/tag/v0.1.0). The three paper-boxing images are on GHCR, tagged as [Releasing](#releasing) describes. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
 
 Four containers make a deployment:
 
@@ -40,7 +40,7 @@ curl http://127.0.0.1:35843/health
 
 Then open `http://<host>:35840/` and sign in with the admin pair from `.env`. For Portainer, paste [`docker-compose.yml`](docker-compose.yml) into the stack's web editor and enter the same variables as the stack's environment variables; [`docs/deployment.md`](docs/deployment.md) walks through it.
 
-What the deployment model assumes, stated plainly: one person's private LAN, plain HTTP, no TLS. Passwords and tokens travel unencrypted between the browser or the agent and the stack; there is no lockout after failed sign-ins. Safeguards against accidents are part of paper-boxing (path containment, overwrite and delete intent, token scopes); measures against strangers are not, and it is not for the public internet.
+What the deployment model assumes, stated plainly: a home lab's private LAN, plain HTTP, no TLS. Passwords and tokens travel unencrypted between the browser or the agent and the stack; there is no lockout after failed sign-ins. Safeguards against accidents are part of paper-boxing (path containment, overwrite and delete intent, token scopes); measures against strangers are not, and it is not for the public internet.
 
 Links inside a site work when they are relative to the site; a link from the host root such as `/css/x.css` does not, because every site lives under `/<site>/`.
 
@@ -50,7 +50,7 @@ Backend, port 35843: the REST API under `/api/v1` ([`docs/api.md`](docs/api.md))
 
 Frontend, port 35840: the pages `/login`, `/` (sites), `/sites/<slug>` (with `?path=<folder>` for a folder), `/tokens`, `/users`, `/account`; `GET /download/<slug>/<path>`, which streams a file from the backend with the signed-in person's session, since the browser never holds the session token; `GET /health`, `GET /admin/version`. A request for a page without a session is sent to `/login` and back afterwards; a download without one gets a 401 in the API's error shape, never the sign-in page. The session lives in NiceGUI's per-browser storage on the frontend (`.nicegui/` under the working directory), so a re-created frontend container asks everyone to sign in again.
 
-MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405), `/sse` (the old HTTP+SSE path: `GET`, `POST` and `DELETE` answer 405 with a body naming `/mcp`, any other method gets the framework's 405), `GET /health`, `GET /admin/version`, `GET /docs`, `GET /openapi.json`.
+MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405), `/sse` (the old HTTP+SSE path, which answers 405 naming `/mcp`; [`docs/api.md`](docs/api.md#mcp-tools)), `GET /health`, `GET /admin/version`, `GET /docs`, `GET /openapi.json`.
 
 Site server, port 35841: `GET /<site>/...`, the files as uploaded. A folder with no `index.html` shows nginx's listing.
 
@@ -77,7 +77,7 @@ Remove and destructive (`remove_destructive`), adds:
 - `delete_folder(site, path, recursive=false)`: a non-empty folder needs `recursive`.
 - `delete_site(site, confirm)`: `confirm` must equal the slug.
 
-Tool calls carry files up to `PAPER_BOXING_MCP_MAX_FILE_MB` (default 8 MiB). A larger file goes through the REST API with the same token: `PUT` and `GET /api/v1/sites/<site>/files/<path>`.
+Tool calls carry files up to `PAPER_BOXING_MCP_MAX_FILE_MB` (default 8 MiB). A larger file goes through the REST API with the same token: `PUT` and `GET /api/v1/sites/{slug}/files/{path}`.
 
 ## Configuration
 
@@ -91,7 +91,7 @@ Backend:
 | `PAPER_BOXING_DATA_DIR` | `./data` (image: `/data`) | the volume: `sites/`, `staging/`, `paper-boxing.sqlite3` |
 | `PAPER_BOXING_PUBLIC_SITES_URL` | `http://127.0.0.1:35841` | the site server's address as people and links reach it; every site's URL is built from it |
 | `PAPER_BOXING_ADMIN_USERNAME` | unset in code; `admin` in the compose file | the first account, created only when no account exists, under the rules of any account (`POST /api/v1/users` in [`docs/api.md`](docs/api.md#routes)) |
-| `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password, at least 8 characters; ignored once an account exists. While no account exists, an invalid pair stops the backend from starting, and an unset pair lets it start with a logged warning and nobody able to sign in |
+| `PAPER_BOXING_ADMIN_PASSWORD` | unset | its password, under the same rules as any account's ([`docs/api.md`](docs/api.md#routes)); ignored once an account exists. While no account exists, an invalid pair stops the backend from starting, and an unset pair lets it start with a logged warning and nobody able to sign in |
 | `PAPER_BOXING_MAX_UPLOAD_MB` | `200` | size cap of one uploaded file, in MiB; at least 1 |
 | `PAPER_BOXING_SESSION_DAYS` | `14` | sliding expiry of a UI session, in days; at least 1 |
 
