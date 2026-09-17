@@ -15,3 +15,10 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 -->
 
 ## [Unreleased]
+
+## [v0.1.0] - 2026-09-17
+
+### Highlights
+
+First tagged release of paper-boxing, a home-lab site manager comprising a FastAPI backend over SQLite, a NiceGUI web frontend, an MCP server exposing eight tools for agents, and an nginx site server, deployed together as a Docker Compose stack on ports 35840–35843. Sites and their files are managed through a shared REST contract by signed-in people or by agents using scoped `pb_` bearer tokens (each confirmed per request at the MCP gate), and served over the LAN by nginx with directory listings where no index.html is present. The release ships a completed deployment guide covering Docker Compose and Portainer, backup and restore, and Claude Code setup, and is exercised end-to-end by an integration tier that drives the built stack through the API, MCP and nginx.
+
