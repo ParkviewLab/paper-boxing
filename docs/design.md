@@ -250,13 +250,16 @@ Frontend:
 - A token is shown only once.
 - Upload flows, run against a fake backend that implements the contract in `common/`.
 
-Integration (`integration` marker):
+Integration (`integration` marker; `tests/integration/`, run by the `integration` job of `test.yml` against the stack built from the tree):
 
-- `docker compose up` for the four services;
-- `/health` on backend, frontend and MCP server;
-- create a site and upload a small tree (HTML, CSS, JS, SVG, PNG, WOFF2) through the API and through MCP;
-- fetch everything through nginx, byte-identical and with the right content types;
-- the PensaForma design page as a real-world file: stored, served, identical.
+- `docker compose up` for the four services, built from the tree with `compose.build.yml` and `integration.env`;
+- `/health` and one version on backend, frontend and MCP server; the frontend's sign-in gate (a page goes to `/login`, a download gets the API's 401); the MCP handshake over the published port with an agent token minted through the real backend, and its refusals (no token, a session token, a foreign Host, a foreign Origin, GET, the legacy `/sse` path);
+- create a site and upload a small tree (HTML, CSS, JS and an ES module, SVG, PNG, WOFF2, a manifest, two levels of folders, a file name with a space and a non-ASCII letter) through the API with a session, and a second site through the MCP server with an agent token, using the SDK's Streamable-HTTP client as `claude mcp add` does; the tools listed and refused by scope;
+- fetch everything through nginx, byte-identical (bytes and sha256) and with the right content types; the `index.html` at a site root, nginx's listing where there is none, a 404 for a missing path, the redirect that keeps the published port, a replaced file showing at once;
+- a self-contained page of 100 KiB or more (an inline style and script, an inline SVG, an image as a data URI, UTF-8 text beyond ASCII) generated in the test rather than committed, as the real-world file: stored, served, identical;
+- delete a file, a folder and each site, through the API and through the tools, with the intent guards (`recursive`, `confirm`) refused across the stack, and confirm that nginx stops serving them and that nothing of a deleted site remains on the volume;
+- the MCP server answers `503 backend_unreachable` while the backend container is stopped, and recovers without a restart when it is started again;
+- every test removes what it created, so the job can run twice against one stack; the whole tier takes a few seconds.
 
 Visual checks follow the handbook's rule: run the app and take screenshots before claiming a UI change works.
 
