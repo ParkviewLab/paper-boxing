@@ -16,11 +16,25 @@ import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
+from importlib import resources
 
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError, BackendUnreachable
 from paper_boxing.frontend import auth, backend
+
+# ParkviewLab brand (the handbook's docs/brand.md): the header carries the deep teal and the
+# shapes-only mark, which has no font dependency and is vendored under its own licence.
+TEAL_DEEP = "#004f52"
+TEAL = "#00C2C7"
+SAGE = "#90b095"
+
+
+def mark_svg(size_px: int = 44) -> str:
+    """The ParkviewLab mark as inline SVG, scaled to `size_px` square, with its title kept."""
+    svg = resources.files("paper_boxing.frontend").joinpath("brand", "parkview_lab_mark.svg").read_text()
+    return svg.replace('width="400" height="400"', f'width="{size_px}" height="{size_px}"', 1)
+
 
 NAV: tuple[tuple[str, str], ...] = (
     ("Sites", "/"),
@@ -34,9 +48,12 @@ NAV: tuple[tuple[str, str], ...] = (
 def frame(title: str) -> Iterator[None]:
     """The header with the navigation and the signed-in person, then a centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
-    with ui.header().classes("items-center justify-between px-4 py-2"):
+    ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
+    with ui.header().classes("items-center justify-between px-4 py-1").style(f"background:{TEAL_DEEP}"):
         with ui.row().classes("items-center gap-6"):
-            ui.link("paper-boxing", "/").classes("text-lg font-semibold text-white no-underline")
+            with ui.link(target="/").classes("no-underline"), ui.row().classes("items-center gap-2"):
+                ui.html(mark_svg(), sanitize=False).classes("flex").mark("brand-mark")
+                ui.label("paper-boxing").classes("text-lg font-semibold text-white")
             for text, path in NAV:
                 ui.link(text, path).classes("text-white no-underline")
         with ui.row().classes("items-center gap-2"):
