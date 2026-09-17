@@ -6,7 +6,7 @@
 
 One distribution, three components (`backend`, `frontend`, `mcp`) and the
 `common` package they share. Each component is its own image and process; see
-docs/design.md.
+docs/architecture.md.
 """
 
 from paper_boxing.common.config import VERSION

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""Several simultaneous sessions (docs/design.md section 5): two people signed
+"""Several simultaneous sessions (docs/architecture.md, "The frontend"): two people signed
 in at the same time never see each other's session, whilst the sites and the
 agent tokens, which the contract makes global, are seen by both."""
 

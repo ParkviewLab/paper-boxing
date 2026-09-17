@@ -66,7 +66,7 @@ def test_frontend_sends_a_visitor_to_sign_in() -> None:
 
 
 def test_mcp_handshake_over_the_published_port(admin: Rest, agent_tokens: dict[str, AgentToken]) -> None:
-    """Every request to /mcp needs an agent token, the handshake included (docs/design.md, section 4a)."""
+    """Every request to /mcp needs an agent token, the handshake included (docs/architecture.md, "The MCP server")."""
     anonymous = httpx.post(f"{MCP}/mcp", json=MCP_INIT, headers=MCP_HEADERS, timeout=TIMEOUT)
     assert anonymous.status_code == 401, anonymous.text
     assert anonymous.json()["error"]["code"] == "unauthorized"

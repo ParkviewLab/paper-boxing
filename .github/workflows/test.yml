@@ -37,7 +37,7 @@ jobs:
       - name: Tests (excluding network + integration markers)
         run: uv run pytest -m "not network and not integration" -q
 
-  # The integration tier (docs/design.md section 7): build the three images from
+  # The integration tier (docs/architecture.md, "Tests"): build the three images from
   # this tree, start the four-service stack, and run the tests marked
   # `integration` against it over the published ports.
   integration:

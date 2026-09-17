@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # In-flight ideas
 
-Scratchpad for ideas under consideration: questions, not commitments (see the handbook's `documentation.md`). Don't act on an entry silently. The design's open questions live at the end of [`design.md`](design.md); the entries here point at them.
+Scratchpad for ideas under consideration: questions, not commitments (see the handbook's [`documentation.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/documentation.md)). Do not act on an entry silently. A decision, once made, is recorded in [`decisions.md`](decisions.md), and a closed entry is removed from here.
 
 ## Open
 

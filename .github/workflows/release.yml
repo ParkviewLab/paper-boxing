@@ -4,8 +4,9 @@
 
 name: Release
 
-# The handbook's release.yml (ci.md, releases.md) with the changes docs/design.md
-# section 3 fixes: no PyPI job (images on GHCR only, so no id-token permission),
+# The handbook's release.yml (ci.md, releases.md) with the changes docs/decisions.md
+# records (2026-09-15: images on GHCR only; one distribution and one Dockerfile
+# with three targets): no PyPI job (images on GHCR only, so no id-token permission),
 # and the docker job is a matrix over the three images, each built from its
 # Dockerfile target with its own cache scope.
 

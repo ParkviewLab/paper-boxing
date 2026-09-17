@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""Component boundaries, enforced with `ast` (docs/design.md section 3).
+"""Component boundaries, enforced with `ast` (docs/architecture.md, "The package and the images").
 
 `common` imports none of the three components; `backend`, `frontend` and
 `mcp` may import `common` but never each other; and the top-level package
