@@ -1,0 +1,141 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# paper-boxing: the example stack. Four services, one data volume.
+#
+#   backend   ghcr.io/parkviewlab/paper-boxing-backend    REST API, the only writer   port 35843
+#   frontend  ghcr.io/parkviewlab/paper-boxing-frontend   the web UI for people       port 35840
+#   mcp       ghcr.io/parkviewlab/paper-boxing-mcp        the MCP server for agents   port 35842
+#   sites     nginx:stable-alpine                         serves /data/sites          port 35841
+#
+# Settings come from ${...} variables, so this file works unchanged from a
+# `.env` beside it (copy .env.example) or from Portainer's stack environment.
+# The two secrets have no default: compose refuses to start until they are
+# set. See docs/deployment.md.
+#
+# Up:       docker compose up -d
+# Upgrade:  docker compose pull && docker compose up -d
+# Down:     docker compose down            # keeps the data volume
+#           docker compose down -v         # also deletes every site and account
+
+services:
+  backend:
+    image: ghcr.io/parkviewlab/paper-boxing-backend:latest
+    container_name: paper-boxing-backend
+    restart: unless-stopped
+    ports:
+      - "35843:35843"
+    environment:
+      # Where the backend keeps sites/, staging/ and the SQLite database (the volume below).
+      PAPER_BOXING_DATA_DIR: /data
+      # CHANGE-ME: the address at which people and BookStack links reach the site server,
+      # used to build every site's URL. Set PAPER_BOXING_PUBLIC_SITES_URL in .env or Portainer.
+      PAPER_BOXING_PUBLIC_SITES_URL: "${PAPER_BOXING_PUBLIC_SITES_URL:-http://CHANGE-ME:35841}"
+      # The first account, created only when no account exists yet; ignored afterwards.
+      PAPER_BOXING_ADMIN_USERNAME: "${PAPER_BOXING_ADMIN_USERNAME:-admin}"
+      PAPER_BOXING_ADMIN_PASSWORD: "${PAPER_BOXING_ADMIN_PASSWORD:?CHANGE-ME: set PAPER_BOXING_ADMIN_PASSWORD in .env or the stack environment}"
+      # Size cap of one uploaded file, in MiB.
+      PAPER_BOXING_MAX_UPLOAD_MB: "${PAPER_BOXING_MAX_UPLOAD_MB:-200}"
+      # Sliding expiry of a UI session, in days.
+      PAPER_BOXING_SESSION_DAYS: "${PAPER_BOXING_SESSION_DAYS:-14}"
+    volumes:
+      # Default: a docker-managed named volume. It survives `docker compose down`.
+      - paper-boxing-data:/data
+      # OR a bind mount you can browse on the host: comment out the line above and
+      # uncomment this one, after `mkdir -p /srv/paper-boxing`. The container runs
+      # as root, so the files appear root-owned on the host.
+      # - /srv/paper-boxing:/data
+    extra_hosts:
+      # Lets a consumer on the docker host reach the stack as host.docker.internal on Linux
+      # (it works out of the box on Mac and Windows).
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    image: ghcr.io/parkviewlab/paper-boxing-frontend:latest
+    container_name: paper-boxing-frontend
+    restart: unless-stopped
+    ports:
+      - "35840:35840"
+    environment:
+      PAPER_BOXING_BACKEND_URL: http://backend:35843
+      PAPER_BOXING_PUBLIC_SITES_URL: "${PAPER_BOXING_PUBLIC_SITES_URL:-http://CHANGE-ME:35841}"
+      # CHANGE-ME: a long random string; it signs the per-user session cookie.
+      PAPER_BOXING_STORAGE_SECRET: "${PAPER_BOXING_STORAGE_SECRET:?CHANGE-ME: set PAPER_BOXING_STORAGE_SECRET in .env or the stack environment}"
+    depends_on:
+      backend:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  mcp:
+    image: ghcr.io/parkviewlab/paper-boxing-mcp:latest
+    container_name: paper-boxing-mcp
+    restart: unless-stopped
+    ports:
+      - "35842:35842"
+    environment:
+      PAPER_BOXING_BACKEND_URL: http://backend:35843
+      PAPER_BOXING_PUBLIC_SITES_URL: "${PAPER_BOXING_PUBLIC_SITES_URL:-http://CHANGE-ME:35841}"
+      # Largest file a tool call carries, in MiB; larger files go through the REST API.
+      PAPER_BOXING_MCP_MAX_FILE_MB: "${PAPER_BOXING_MCP_MAX_FILE_MB:-8}"
+      # CHANGE-ME: the Host values agents connect with (DNS-rebinding protection). A request
+      # whose Host is not listed gets 421. `<host>:*` matches any port.
+      PAPER_BOXING_MCP_ALLOWED_HOSTS: "${PAPER_BOXING_MCP_ALLOWED_HOSTS:-CHANGE-ME:35842,localhost:*,127.0.0.1:*}"
+      # Browser origins allowed to call the MCP server and read its responses; empty keeps
+      # the loopback defaults. Non-browser MCP clients send no Origin and always pass.
+      PAPER_BOXING_MCP_ALLOWED_ORIGINS: "${PAPER_BOXING_MCP_ALLOWED_ORIGINS:-}"
+    depends_on:
+      backend:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  sites:
+    # A stock nginx serving /data/sites read-only (docs/design.md section 6). Its
+    # configuration is inline below, so the stack is one file that can be pasted into
+    # Portainer's web editor. The whole data volume is mounted read-only and `root`
+    # points at its sites/ tree, so nothing outside that tree is reachable over HTTP
+    # and the mount works on every Docker version (a volume subpath needs Docker 26+).
+    image: nginx:stable-alpine
+    container_name: paper-boxing-sites
+    restart: unless-stopped
+    ports:
+      - "35841:80"
+    volumes:
+      - paper-boxing-data:/data:ro
+      # With the bind-mount alternative above, use its path here too:
+      # - /srv/paper-boxing:/data:ro
+    configs:
+      - source: nginx-sites
+        target: /etc/nginx/conf.d/default.conf
+
+configs:
+  nginx-sites:
+    # Requires Compose 2.23.1 or newer for inline `content`. If a Portainer rejects it,
+    # write this block to a file on the host and bind-mount it at
+    # /etc/nginx/conf.d/default.conf:ro instead. `$$` is how a literal `$` is written here.
+    content: |
+      server {
+          listen 80;
+          server_name _;
+          root /data/sites;
+          index index.html;
+          autoindex on;
+          autoindex_exact_size off;
+          autoindex_localtime on;
+          absolute_redirect off;
+          include /etc/nginx/mime.types;
+          types {
+              application/javascript mjs;
+              application/manifest+json webmanifest;
+          }
+          add_header Cache-Control "no-cache";
+          location / {
+              try_files $$uri $$uri/ =404;
+          }
+      }
+
+volumes:
+  # Only needed with the named-volume option above.
+  paper-boxing-data:

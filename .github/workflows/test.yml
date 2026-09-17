@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Test
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync deps
+        run: uv sync
+
+      - name: Lint
+        run: uv run ruff check src tests
+
+      - name: Format check
+        run: uv run ruff format --check src tests
+
+      - name: Type check
+        run: uv run ty check          # ty must be a dev dependency
+
+      - name: Tests (excluding network + integration markers)
+        run: uv run pytest -m "not network and not integration" -q
+
+  # The integration tier (docs/design.md section 7): build the three images from
+  # this tree, start the four-service stack, and run the tests marked
+  # `integration` against it over the published ports.
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f docker-compose.yml -f tests/integration/compose.build.yml --env-file tests/integration/integration.env
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync deps
+        run: uv sync
+
+      - name: Build the images and start the stack
+        run: $COMPOSE up -d --build --wait --wait-timeout 180
+
+      - name: Integration tests
+        env:
+          PAPER_BOXING_INTEGRATION: "1"
+        run: uv run pytest -m integration -q
+
+      - name: Stack logs
+        if: failure()
+        run: $COMPOSE logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: $COMPOSE down -v

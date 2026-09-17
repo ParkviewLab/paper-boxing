@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Override for the integration job and for a local check: build the three images from
+# this tree instead of pulling them, under local tags so a pulled image is never shadowed.
+#
+#   docker compose -f docker-compose.yml -f tests/integration/compose.build.yml \
+#     --env-file tests/integration/integration.env up -d --build --wait
+#   PAPER_BOXING_INTEGRATION=1 uv run pytest -m integration -q
+#   docker compose -f docker-compose.yml -f tests/integration/compose.build.yml \
+#     --env-file tests/integration/integration.env down -v
+
+services:
+  backend:
+    image: paper-boxing-backend:local
+    build:
+      context: .
+      target: backend
+  frontend:
+    image: paper-boxing-frontend:local
+    build:
+      context: .
+      target: frontend
+  mcp:
+    image: paper-boxing-mcp:local
+    build:
+      context: .
+      target: mcp
