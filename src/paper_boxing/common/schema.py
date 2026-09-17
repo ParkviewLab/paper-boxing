@@ -65,6 +65,7 @@ class ErrorCode(StrEnum):
     # 500 / 507
     INTERNAL_ERROR = "internal_error"
     INSUFFICIENT_STORAGE = "insufficient_storage"
+    BACKEND_UNREACHABLE = "backend_unreachable"
 
 
 class ErrorDetail(BaseModel):

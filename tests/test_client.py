@@ -131,3 +131,55 @@ async def test_non_contract_error_body() -> None:
 def test_for_base_url_builds_a_client() -> None:
     api = BackendClient.for_base_url("http://127.0.0.1:35843/")
     assert isinstance(api, BackendClient)
+
+
+async def test_stream_file(client: tuple[BackendClient, FakeState]) -> None:
+    api, _ = client
+    session = (await api.login(*ADMIN)).token
+    await api.create_site(session, "Stream")
+    content = bytes(range(256)) * 20
+    await api.upload_file(session, "stream", "css/site.css", content)
+
+    async with api.stream_file(session, "stream", "css/site.css", chunk_size=1000) as file:
+        assert file.path == "css/site.css"
+        assert file.content_type.startswith("text/css")
+        assert file.content_length == len(content)
+        chunks = [chunk async for chunk in file.chunks]
+    assert len(chunks) > 1
+    assert b"".join(chunks) == content
+
+    with pytest.raises(BackendError) as exc:
+        async with api.stream_file(session, "stream", "css/missing.css"):
+            pass
+    assert exc.value.status == 404 and exc.value.code == "not_found"
+
+
+async def test_stream_file_unreachable() -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    api = BackendClient(httpx.AsyncClient(transport=httpx.MockTransport(refuse), base_url="http://backend"))
+    with pytest.raises(BackendUnreachable):
+        async with api.stream_file("pb_x", "site", "a.txt"):
+            pass
+    await api.aclose()
+
+
+async def test_upload_file_from_an_async_iterator(client: tuple[BackendClient, FakeState]) -> None:
+    api, fake = client
+    session = (await api.login(*ADMIN)).token
+    await api.create_site(session, "Chunks")
+    content = b"0123456789" * 1000
+
+    async def chunks() -> AsyncIterator[bytes]:
+        for i in range(0, len(content), 4096):
+            yield content[i : i + 4096]
+
+    declared = await api.upload_file(session, "chunks", "declared.bin", chunks(), content_length=len(content))
+    assert declared.bytes == len(content)
+    assert declared.sha256 == hashlib.sha256(content).hexdigest()
+    assert fake.sites["chunks"].files["declared.bin"].content == content
+
+    undeclared = await api.upload_file(session, "chunks", "undeclared.bin", chunks())
+    assert undeclared.bytes == len(content)
+    assert fake.sites["chunks"].files["undeclared.bin"].content == content
