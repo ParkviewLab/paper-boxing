@@ -64,6 +64,10 @@ def install_error_handlers(app: FastAPI) -> None:
             response.headers.update(exc.headers)
         return response
 
+    @app.exception_handler(Exception)
+    async def _unexpected(request: Request, exc: Exception) -> JSONResponse:
+        return error_response(500, ErrorCode.INTERNAL_ERROR, f"{type(exc).__name__}: {exc}")
+
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         problems = "; ".join(

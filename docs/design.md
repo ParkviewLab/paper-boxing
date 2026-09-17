@@ -107,11 +107,12 @@ Sites:
 Files and folders:
 
 - `GET /sites/{slug}/files?path=` lists one folder: name, type, bytes, modification time and sha256.
-- `PUT /sites/{slug}/files/{path}?overwrite=false` uploads one file as a raw body. An existing file without `overwrite=true` answers 409. The response carries path, bytes and sha256.
-- `POST /sites/{slug}/uploads` uploads many files as multipart, each part's filename being its relative path. It takes an `overwrite` flag, and a batch fails before any write if any path is invalid.
+- `PUT /sites/{slug}/files/{path}?overwrite=false` uploads one file as a raw body, creating missing parent folders on the way. An existing file without `overwrite=true` answers 409. The response carries path, bytes and sha256.
 - `GET /sites/{slug}/files/{path}` downloads a file as an attachment.
 - `DELETE /sites/{slug}/files/{path}` deletes a file.
 - `DELETE /sites/{slug}/folders/{path}?recursive=false` deletes a folder. A non-empty folder without `recursive=true` answers 409.
+
+File operations are single-file only, decided by Gary on 2026-09-17: there is no batch upload, no folder upload and no explicit folder creation, because an empty folder has no meaning in a static site. Designed pages are self-contained, so a site is a handful of files; an agent that wants a site to match a new build lists, uploads what changed and deletes what is gone, which is a client-side loop, and the transient mixed state during such a loop is accepted for one reader on a private LAN. An all-or-nothing replace can be added later as one additive route if a need appears. The scaffold also added `GET /sites/{slug}`, one site's record, for the frontend's site page.
 
 Access tokens and users:
 
@@ -146,11 +147,11 @@ Authentication model (the handbook knows only one shared static token; this mode
 Safeguards against accidents:
 
 - Path containment: resolve the path, then check it still lies inside the site, as `safe_subpath` does in deco-assaying's `outputs.py`. This rejects `..`, absolute paths, encoded traversal and symlinks. Uploaded symlinks and special files are refused.
-- Uploads stream into `/data/staging` with a size cap (`PAPER_BOXING_MAX_UPLOAD_MB`, default 200) and a file-count cap per batch, then `os.replace` into place. A failure cleans the staging file up and leaves the old file whole. The patterns are in flint-slating's `pdf_source.py` and ebony-enriching's `storage/markdown.py`.
+- Uploads stream into `/data/staging` with a size cap (`PAPER_BOXING_MAX_UPLOAD_MB`, default 200), then `os.replace` into place. A failure cleans the staging file up and leaves the old file whole. The patterns are in flint-slating's `pdf_source.py` and ebony-enriching's `storage/markdown.py`.
 - Writes to the same path are serialized, following ebony-enriching's `mutex.py`.
 - Disk-full and quota errors return clear responses and leave nothing half-written.
 
-Configuration uses environment variables only, in the handbook's style (dataclass plus `os.environ.get`). `HOST` defaults to `127.0.0.1` in code and is set to `0.0.0.0` in the image. The other variables are `PORT`, `PAPER_BOXING_DATA_DIR`, `PAPER_BOXING_PUBLIC_SITES_URL`, the admin bootstrap pair, the size caps and `PAPER_BOXING_SESSION_DAYS`. All are documented in the README's configuration table.
+Configuration uses environment variables only, in the handbook's style (dataclass plus `os.environ.get`). `HOST` defaults to `127.0.0.1` in code and is set to `0.0.0.0` in the image. The other variables are `PORT`, `PAPER_BOXING_DATA_DIR`, `PAPER_BOXING_PUBLIC_SITES_URL`, the admin bootstrap pair, the size cap and `PAPER_BOXING_SESSION_DAYS`. All are documented in the README's configuration table.
 
 ## 4a. MCP server
 
@@ -189,8 +190,8 @@ Pages:
 - `/`, the sites list: create a site, copy its URL, open it, and delete it after typing its name.
 - `/sites/{slug}`, one site:
   - browse folders;
-  - upload files and whole folders, with an overwrite choice;
-  - download a file or a folder;
+  - upload files, with an overwrite choice: a person may pick several files at once and the page uploads them in turn against the single-file route, a convenience of the page and not a capability of the server;
+  - download a file;
   - replace a file;
   - delete a file, or a folder with an explicit recursive confirmation.
 - `/tokens`: create a token with a scope, shown once with a copy button; list tokens; revoke one.
@@ -206,21 +207,18 @@ Several simultaneous sessions must work correctly. This is a stated requirement,
 
 Configuration: `HOST`, `PORT`, `PAPER_BOXING_BACKEND_URL`, `PAPER_BOXING_STORAGE_SECRET`, `PAPER_BOXING_PUBLIC_SITES_URL`.
 
-Risk to settle first, as a spike in the frontend PR: whether NiceGUI's `ui.upload` (Quasar QUploader) can send a folder selection with each file's relative path (`webkitRelativePath`). If it cannot, the site page uses a small custom element: a plain `<input type="file" webkitdirectory multiple>` whose script posts to the backend's `POST /sites/{slug}/uploads` through a frontend proxy route that adds the user's token. The spike's result is recorded in `docs/design.md`.
-
 ## 6. Site server
 
 The nginx configuration is short:
 
-- `root /sites`;
-- `autoindex off`;
-- `index index.html`;
-- `try_files $uri $uri/ =404`;
+- `root /data/sites`, the served tree inside the read-only volume mount;
+- `index index.html`, and `autoindex on` with `autoindex_exact_size off` and `autoindex_localtime on`, so a site or folder with no `index.html` of its own shows nginx's own directory listing (decided by Gary on 2026-09-17, closing open question 10): during early design a site is a few hand-made pages, and a bare list of files is what a person wants before an index exists; it costs one directive and no code;
+- `try_files $uri $uri/ =404` stays, so a missing path is still a 404;
 - `absolute_redirect off`. Without it, nginx's redirect from `/<site>` to `/<site>/` names its internal port 80 instead of the published 35841, and the redirected link breaks;
 - `add_header Cache-Control "no-cache"`, so a replaced file shows at once, still revalidated through ETag;
 - the default MIME types plus `.mjs` and `.webmanifest`.
 
-It mounts `/data/sites` read-only. A site's root serves its `index.html`. Links relative to the site work; links starting from the host root such as `/css/x.css` do not, and the README says so.
+It mounts the data volume read-only, with `root` pointing at its `sites/` tree; nothing outside that tree is reachable over HTTP. A site's root serves its `index.html`, or the listing when there is none. Links relative to the site work; links starting from the host root such as `/css/x.css` do not, and the README says so.
 
 ## 7. Tests
 
@@ -311,7 +309,7 @@ Pull requests into `develop`, each from its own prefixed worktree and each merge
 1. `build-scaffold` (one worker): the package skeleton with `/health` on all three services; config; licensing; workflows including the image matrix; Dockerfiles, compose and the nginx configuration; docs; pointer files. It also fixes the API contract: the `common/` pydantic schemas and REST client, the REST route table, a fake backend for tests, and the MCP tool specifications.
 2. Once the scaffold is merged, three workers in parallel, each a background session in its own worktree, all built against the contract from PR 1:
    - `feature-backend`: storage, authentication, sessions and tokens, REST, backend tests.
-   - `feature-frontend`: all pages, the multi-session design, the folder-upload spike, frontend tests against the fake backend.
+   - `feature-frontend`: all pages, the multi-session design, frontend tests against the fake backend.
    - `feature-mcp`: the MCP server, its three safeguards, tools, MCP tests against the fake backend.
 3. `test-integration`, after all three have merged: the compose-based integration job, and `docs/deployment.md` completed from instructions the job has actually run (the scaffold PR drafts it).
 
@@ -359,7 +357,11 @@ Also open, after those:
 7. Work split. Decided: option 1, in phases: scaffold; then backend, frontend and MCP in parallel; then integration (section 9).
 8. A `docs/northstar.md`. Decided: drafted in the scaffold PR, for Gary's editing. It opens with what paper-boxing is for (the working space for the early design and specification of big new projects, before a repository and a release, and for private documents permanently), then three intents: pages kept exactly as written; equally usable by a person and an agent through one backend; sized for one person's home lab in Docker; plus what it is not (not a wiki, a CMS, a build system, a public host, or a replacement for a released project's GitHub Pages site). No HTML twin until paper-boxing is up and running.
 
-Still open, for Gary, before the backend and frontend workers start (neither blocks the scaffold):
+Decided on 2026-09-17, during the scaffold:
+
+10. What a site with no `index.html` of its own shows at its root. Decided: nginx's own listing (`autoindex on`); section 6 records the reason.
+11. File operations are single-file only: no batch upload, no folder upload, no explicit folder creation; section 4 records the reason.
+
+Still open, for Gary, before the backend and frontend workers start (it does not block the scaffold):
 
 9. Whether paper-boxing also previews a repository's documentation site before its release (the build script's output uploaded as a site). No new capability is needed; it is a question of intended use.
-10. What a site with no `index.html` of its own shows at its root: a refusal as nginx gives today with `autoindex off`, nginx's own listing, or an index generated by the backend in the style of `docs-site.md`.

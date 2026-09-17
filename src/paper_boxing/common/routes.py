@@ -108,20 +108,6 @@ ROUTES: tuple[RouteSpec, ...] = (
         "delete one file",
     ),
     RouteSpec(
-        "upload_batch",
-        "POST",
-        f"{API_PREFIX}/sites/{{slug}}/uploads",
-        Access.READ_WRITE,
-        "upload many files as multipart; each part's filename is its relative path (?overwrite=)",
-    ),
-    RouteSpec(
-        "download_archive",
-        "GET",
-        f"{API_PREFIX}/sites/{{slug}}/archive",
-        Access.READ_ONLY,
-        "download a folder (?path=) or the whole site as a zip",
-    ),
-    RouteSpec(
         "delete_folder",
         "DELETE",
         f"{API_PREFIX}/sites/{{slug}}/folders/{{path:path}}",

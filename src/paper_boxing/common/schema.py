@@ -36,9 +36,7 @@ class ErrorCode(StrEnum):
     # 400
     INVALID_NAME = "invalid_name"
     INVALID_PATH = "invalid_path"
-    INVALID_SCOPE = "invalid_scope"
     CONFIRM_MISMATCH = "confirm_mismatch"
-    INVALID_BATCH = "invalid_batch"
     BAD_REQUEST = "bad_request"
     # 401
     UNAUTHORIZED = "unauthorized"
@@ -62,7 +60,6 @@ class ErrorCode(StrEnum):
     LAST_USER = "last_user"
     # 413
     PAYLOAD_TOO_LARGE = "payload_too_large"
-    TOO_MANY_FILES = "too_many_files"
     # 422
     VALIDATION_ERROR = "validation_error"
     # 500 / 507
@@ -148,12 +145,6 @@ class UploadResult(BaseModel):
     bytes: int
     sha256: str
     replaced: bool = Field(description="true when an existing file was overwritten")
-
-
-class BatchUploadResult(BaseModel):
-    files: list[UploadResult]
-    count: int
-    bytes: int
 
 
 # ---- access tokens ----

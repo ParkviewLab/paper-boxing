@@ -25,7 +25,6 @@ from pydantic import ValidationError
 
 from paper_boxing.common.routes import VIA_HEADER, build_path
 from paper_boxing.common.schema import (
-    BatchUploadResult,
     ChangePasswordRequest,
     CreateSiteRequest,
     CreateTokenRequest,
@@ -184,20 +183,6 @@ class BackendClient:
         )
         return UploadResult.model_validate(response.json())
 
-    async def upload_batch(
-        self, token: str, slug: str, files: list[tuple[str, bytes]], *, overwrite: bool = False
-    ) -> BatchUploadResult:
-        """Upload many files in one multipart request; each item is (relative path, content)."""
-        parts = [("files", (path, content, "application/octet-stream")) for path, content in files]
-        response = await self._request(
-            "POST",
-            build_path("upload_batch", slug=slug),
-            token,
-            files=parts,
-            params={"overwrite": "true" if overwrite else "false"},
-        )
-        return BatchUploadResult.model_validate(response.json())
-
     async def download_file(self, token: str, slug: str, path: str) -> DownloadedFile:
         response = await self._request("GET", build_path("download_file", slug=slug, path=path), token)
         content = response.content
@@ -207,12 +192,6 @@ class BackendClient:
             content_type=response.headers.get("content-type", "application/octet-stream"),
             sha256=hashlib.sha256(content).hexdigest(),
         )
-
-    async def download_archive(self, token: str, slug: str, path: str = "") -> bytes:
-        response = await self._request(
-            "GET", build_path("download_archive", slug=slug), token, params={"path": path}
-        )
-        return response.content
 
     async def delete_file(self, token: str, slug: str, path: str) -> None:
         await self._request("DELETE", build_path("delete_file", slug=slug, path=path), token)

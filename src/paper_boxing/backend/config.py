@@ -41,7 +41,6 @@ class BackendConfig:
     admin_username: str | None
     admin_password: str | None
     max_upload_mb: int
-    max_batch_files: int
     session_days: int
 
     @property
@@ -71,6 +70,5 @@ def load_config() -> BackendConfig:
         admin_username=optional_env("PAPER_BOXING_ADMIN_USERNAME"),
         admin_password=optional_env("PAPER_BOXING_ADMIN_PASSWORD"),
         max_upload_mb=int_env("PAPER_BOXING_MAX_UPLOAD_MB", 200),
-        max_batch_files=int_env("PAPER_BOXING_MAX_BATCH_FILES", 500),
         session_days=int_env("PAPER_BOXING_SESSION_DAYS", 14),
     )
