@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from paper_boxing.common.schema import FileListing, Site, UploadResult
 
@@ -43,20 +43,26 @@ _PATH = Field(description="path inside the site, '/'-separated and relative, for
 # ---- inputs ----
 
 
-class ListSitesInput(BaseModel):
+class ToolInput(BaseModel):
+    """An argument the tool does not know is refused, not dropped: a misspelling never turns into a default."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ListSitesInput(ToolInput):
     pass
 
 
-class CreateSiteInput(BaseModel):
+class CreateSiteInput(ToolInput):
     name: str = Field(min_length=1, max_length=120, description="display name; the slug is derived from it")
 
 
-class ListFilesInput(BaseModel):
+class ListFilesInput(ToolInput):
     site: str = _SITE
     path: str = Field(default="", description="the folder to list; '' is the site root")
 
 
-class UploadFileInput(BaseModel):
+class UploadFileInput(ToolInput):
     site: str = _SITE
     path: str = _PATH
     content_base64: str = Field(description="the file's bytes, base64-encoded")
@@ -65,23 +71,23 @@ class UploadFileInput(BaseModel):
     )
 
 
-class DownloadFileInput(BaseModel):
+class DownloadFileInput(ToolInput):
     site: str = _SITE
     path: str = _PATH
 
 
-class DeleteFileInput(BaseModel):
+class DeleteFileInput(ToolInput):
     site: str = _SITE
     path: str = _PATH
 
 
-class DeleteFolderInput(BaseModel):
+class DeleteFolderInput(ToolInput):
     site: str = _SITE
     path: str = _PATH
     recursive: bool = Field(default=False, description="delete a non-empty folder with everything in it")
 
 
-class DeleteSiteInput(BaseModel):
+class DeleteSiteInput(ToolInput):
     site: str = _SITE
     confirm: str = Field(description="must equal the slug; the tool refuses otherwise")
 

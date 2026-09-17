@@ -10,6 +10,7 @@ backend's refusals coming back as tool errors in the contract's shape."""
 from __future__ import annotations
 
 import base64
+import dataclasses
 import hashlib
 import json
 import struct
@@ -229,6 +230,48 @@ def test_every_tool_output_validates_against_its_output_schema(
     assert slug not in fake_state.sites
 
 
+def test_a_write_tool_after_a_read_only_listing_is_still_output_validated(
+    mcp_client: TestClient, fake_state: FakeState, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The SDK's schema cache is merged into, never cleared to one caller's scope: a tool absent from it
+    is fetched under the calling token, so a call's output is validated against its outputSchema."""
+    from paper_boxing.mcp import schema, server
+
+    cache = server.mcp._tool_cache  # the SDK's validation cache (mcp < 2)
+    cache.clear()
+    list_tools(mcp_client, token=_agent(fake_state, Scope.READ_ONLY))
+    assert "create_site" not in cache and "list_sites" in cache
+    rw = _agent(fake_state, Scope.READ_WRITE)
+
+    async def wrong_shape(ctx: object, args: object) -> schema.DeletedSiteOutput:
+        return schema.DeletedSiteOutput(slug="not-a-site")
+
+    specs = tuple(
+        dataclasses.replace(s, handler=wrong_shape) if s.name == "create_site" else s for s in server.SPECS
+    )
+    monkeypatch.setattr(server, "SPECS", specs)
+    result = call_tool(mcp_client, "create_site", {"name": f"Validated {uuid.uuid4().hex[:6]}"}, token=rw)
+    assert result["isError"] is True, result
+    assert "Output validation error" in result["content"][0]["text"]
+    assert "create_site" in cache, "the miss was refilled under the calling token"
+    monkeypatch.undo()
+    assert _ok(call_tool(mcp_client, "create_site", {"name": f"Validated {uuid.uuid4().hex[:6]}"}, token=rw))[
+        "slug"
+    ]
+
+
+def test_an_unknown_argument_is_refused_not_dropped(mcp_client: TestClient, fake_state: FakeState) -> None:
+    rw = _agent(fake_state, Scope.READ_WRITE)
+    slug = _site(mcp_client, rw)
+    args = {"site": slug, "path": "index.html", "content_base64": _b64(b"one")}
+    _ok(call_tool(mcp_client, "upload_file", args, token=rw))
+    error = _error(call_tool(mcp_client, "upload_file", {**args, "overwite": True}, token=rw))
+    assert error["code"] == "validation_error" and "overwite" in error["message"]
+    assert fake_state.sites[slug].files["index.html"].content == b"one", (
+        "the misspelling did not become overwrite"
+    )
+
+
 # ---------------------------------------------------------------------------
 # The size cap
 
@@ -269,17 +312,39 @@ def test_upload_at_the_cap_passes_the_transport(mcp_client: TestClient, fake_sta
     assert up["bytes"] == CAP and up["sha256"] == hashlib.sha256(content).hexdigest()
 
 
-def test_download_above_the_cap_is_refused_naming_the_rest_route(
+def test_upload_at_the_cap_line_wrapped_passes_the_transport(
+    mcp_client: TestClient, fake_state: FakeState
+) -> None:
+    """`base64.encodebytes` wraps at 76 columns; the transport's limit budgets for the escaped newlines."""
+    rw = _agent(fake_state, Scope.READ_WRITE)
+    slug = _site(mcp_client, rw)
+    content = b"\x5a" * CAP
+    wrapped = base64.encodebytes(content).decode("ascii")
+    up = _ok(
+        call_tool(
+            mcp_client,
+            "upload_file",
+            {"site": slug, "path": "wrapped.bin", "content_base64": wrapped},
+            token=rw,
+        )
+    )
+    assert up["bytes"] == CAP and up["sha256"] == hashlib.sha256(content).hexdigest()
+
+
+def test_download_above_the_cap_is_refused_before_the_bytes_are_fetched(
     mcp_client: TestClient, fake_state: FakeState
 ) -> None:
     rw = _agent(fake_state, Scope.READ_WRITE)
     slug = _site(mcp_client, rw)
-    fake_state.sites[slug].files["huge.bin"] = FakeFile(
+    fake_state.sites[slug].files["big/huge.bin"] = FakeFile(
         content=b"\0" * (CAP + 1), modified_at=fake_state.clock.now()
     )
-    error = _error(call_tool(mcp_client, "download_file", {"site": slug, "path": "huge.bin"}, token=rw))
+    fake_state.sites[slug].folders["big"] = fake_state.clock.now()
+    start = len(fake_state.requests)
+    error = _error(call_tool(mcp_client, "download_file", {"site": slug, "path": "big/huge.bin"}, token=rw))
     assert error["code"] == "payload_too_large"
-    assert f"GET /api/v1/sites/{slug}/files/huge.bin" in error["message"]
+    assert f"GET /api/v1/sites/{slug}/files/big/huge.bin" in error["message"]
+    assert [r.route for r in fake_state.requests[start:]] == ["token_self", "list_files"], "no download_file"
 
 
 def test_descriptions_name_the_cap_and_the_rest_route(mcp_client: TestClient, fake_state: FakeState) -> None:

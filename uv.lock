@@ -968,6 +968,7 @@ mcp = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
+    { name = "jsonschema" },
     { name = "paper-boxing", extra = ["backend", "frontend", "mcp"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -996,6 +997,7 @@ provides-extras = ["backend", "frontend", "mcp"]
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx" },
+    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "paper-boxing", extras = ["backend", "frontend", "mcp"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
