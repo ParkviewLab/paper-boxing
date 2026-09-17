@@ -17,6 +17,8 @@ a connection failure raises `BackendUnreachable`.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import AsyncIterable, AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -73,6 +75,16 @@ class DownloadedFile:
     sha256: str
 
 
+@dataclass(frozen=True)
+class StreamedFile:
+    """A file on its way from the backend: the response's headers, and its bytes as they arrive."""
+
+    path: str
+    content_type: str
+    content_length: int | None
+    chunks: AsyncIterator[bytes]
+
+
 class BackendClient:
     """Typed access to every route in `paper_boxing.common.routes.ROUTES`."""
 
@@ -104,15 +116,16 @@ class BackendClient:
         token: str | None,
         *,
         json: dict[str, Any] | None = None,
-        content: bytes | None = None,
+        content: bytes | AsyncIterable[bytes] | None = None,
         params: dict[str, str] | None = None,
         files: list[tuple[str, tuple[str, bytes, str]]] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         try:
             response = await self._http.request(
                 method,
                 path,
-                headers=self._headers(token),
+                headers={**self._headers(token), **(headers or {})},
                 json=json,
                 content=content,
                 params=params,
@@ -172,16 +185,61 @@ class BackendClient:
         return FileListing.model_validate(response.json())
 
     async def upload_file(
-        self, token: str, slug: str, path: str, content: bytes, *, overwrite: bool = False
+        self,
+        token: str,
+        slug: str,
+        path: str,
+        content: bytes | AsyncIterable[bytes],
+        *,
+        overwrite: bool = False,
+        content_length: int | None = None,
     ) -> UploadResult:
+        """Upload one file. `content` is the whole body, or an async iterator of chunks for a large file;
+        with an iterator, pass `content_length` when the size is known, so the backend sees a declared
+        length (its checks run in the contract's order on it) instead of a chunked body."""
+        headers = {"Content-Length": str(content_length)} if content_length is not None else None
         response = await self._request(
             "PUT",
             build_path("upload_file", slug=slug, path=path),
             token,
             content=content,
             params={"overwrite": "true" if overwrite else "false"},
+            headers=headers,
         )
         return UploadResult.model_validate(response.json())
+
+    @asynccontextmanager
+    async def stream_file(
+        self, token: str, slug: str, path: str, *, chunk_size: int = 1024 * 1024
+    ) -> AsyncIterator[StreamedFile]:
+        """Download one file as a stream: the headers at once, the bytes chunk by chunk.
+
+            async with client.stream_file(token, slug, path) as file:
+                async for chunk in file.chunks: ...
+
+        A non-2xx answer raises `BackendError` before anything is yielded; the
+        response is closed when the block ends. `download_file` stays the whole-body form.
+        """
+        request = self._http.build_request(
+            "GET", build_path("download_file", slug=slug, path=path), headers=self._headers(token)
+        )
+        try:
+            response = await self._http.send(request, stream=True)
+        except httpx.TransportError as e:
+            raise BackendUnreachable(f"GET {request.url.path}: {e}") from e
+        try:
+            if not response.is_success:
+                await response.aread()
+                raise _error_from(response)
+            length = response.headers.get("content-length")
+            yield StreamedFile(
+                path=path,
+                content_type=response.headers.get("content-type", "application/octet-stream"),
+                content_length=int(length) if length is not None and length.isdigit() else None,
+                chunks=response.aiter_bytes(chunk_size),
+            )
+        finally:
+            await response.aclose()
 
     async def download_file(self, token: str, slug: str, path: str) -> DownloadedFile:
         response = await self._request("GET", build_path("download_file", slug=slug, path=path), token)

@@ -246,7 +246,7 @@ MCP server (against a fake backend implementing the contract, and in the integra
 
 Frontend:
 
-- With `nicegui.testing`'s `User` fixture: the login redirect, and two users signed in at the same time who never see each other's sites, pages or tokens.
+- With `nicegui.testing`'s `User` fixture: the login redirect, and two users signed in at the same time who never see each other's session (name or token), whilst the sites and the agent tokens, which the contract makes shared with equal rights, are listed to both.
 - A token is shown only once.
 - Upload flows, run against a fake backend that implements the contract in `common/`.
 

@@ -45,7 +45,7 @@ Links inside a site work when they are relative to the site; a link from the hos
 
 Backend, port 35843: the REST API under `/api/v1` ([`docs/api.md`](docs/api.md)), `GET /health`, `GET /admin/version`, `GET /docs`.
 
-Frontend, port 35840: the pages `/login`, `/` (sites), `/sites/<slug>`, `/tokens`, `/users`, `/account`; `GET /health`, `GET /admin/version`.
+Frontend, port 35840: the pages `/login`, `/` (sites), `/sites/<slug>` (with `?path=<folder>` for a folder), `/tokens`, `/users`, `/account`; `GET /download/<slug>/<path>`, which streams a file from the backend with the signed-in person's session, since the browser never holds the session token; `GET /health`, `GET /admin/version`. A request for a page without a session is sent to `/login` and back afterwards; a download without one gets a 401 in the API's error shape, never the sign-in page. The session lives in NiceGUI's per-browser storage on the frontend (`.nicegui/` under the working directory), so a re-created frontend container asks everyone to sign in again.
 
 MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405, and the old `/sse` path answers 405 naming `/mcp`), `GET /health`, `GET /admin/version`, `GET /docs`.
 

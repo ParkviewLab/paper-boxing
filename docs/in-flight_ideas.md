@@ -52,6 +52,10 @@ Decided in the design (decision 8): no HTML twin until paper-boxing is up and ru
 
 ## Decided
 
+### Streaming file transfer in the frontend
+
+Done in the frontend's first pull request, at review: `BackendClient.stream_file` streams a download chunk by chunk into a `StreamingResponse`, and `upload_file` takes an async iterator with a declared length, so a file near the 200 MB cap is never held whole in the frontend. `download_file` stays as the whole-body form for the MCP server. Closed.
+
 ### What a site with no `index.html` shows (design question 10)
 
 Decided by Gary on 2026-09-17: nginx's own listing (`autoindex on`, with `autoindex_exact_size off` and `autoindex_localtime on`). Design section 6 records the reason. Closed.

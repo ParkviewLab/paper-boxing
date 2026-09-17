@@ -66,6 +66,8 @@ packages = ["src/paper_boxing"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# The NiceGUI main file that nicegui.testing's `user` fixture executes per frontend test.
+main_file = "tests/frontend_main.py"
 markers = [
     "network: tests that require outbound network access",
     "integration: end-to-end tests against the running compose stack",

@@ -10,6 +10,8 @@ build/
 .DS_Store
 .claude/
 output/
+# NiceGUI's per-user storage, written under the working directory by a frontend run from the tree.
+.nicegui/
 
 # Transient release artifact: scripts/generate_changelog.py writes this for
 # `gh release create --notes-file`; it's regenerated every release, never committed.

@@ -18,7 +18,12 @@ request record. Both live for the session, like the client, so tests create
 their own sites under distinct names.
 
 The backend and frontend apps have no such constraint, but the same shape is
-used for symmetry. Data lives in `tmp_path_factory` directories only.
+used for symmetry. Data lives in `tmp_path_factory` directories only, except
+NiceGUI's own storage, which its test plugin points at a temporary directory
+of its own before the first test.
+
+The frontend's page fixtures live in `tests/frontend_fixtures.py`, loaded
+through `pytest_plugins` at the end of this file beside NiceGUI's user plugin.
 """
 
 from __future__ import annotations
@@ -64,8 +69,10 @@ def frontend_client() -> Iterator[TestClient]:
     os.environ["PAPER_BOXING_STORAGE_SECRET"] = "test-secret"
     from nicegui import app
 
-    import paper_boxing.frontend.app  # noqa: F401  (registers the routes on NiceGUI's app)
+    from paper_boxing.frontend.app import install
+    from paper_boxing.frontend.config import load_config
 
+    install(load_config())  # the routes on NiceGUI's app
     # No lifespan: NiceGUI's startup wants a running ui.run(); the ops routes need none of it.
     yield TestClient(app, base_url="http://localhost")
 
@@ -98,3 +105,7 @@ def mcp_client(fake_backend_app: FastAPI) -> Iterator[TestClient]:
     # (the TestClient default "testserver" would be rejected with 421).
     with TestClient(server.app, base_url="http://localhost") as client:
         yield client
+
+
+# NiceGUI's user simulation (user_plugin, not plugin, which imports selenium) and the frontend's fixtures.
+pytest_plugins = ["nicegui.testing.user_plugin", "tests.frontend_fixtures"]
