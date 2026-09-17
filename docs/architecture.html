@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+
+Designed HTML presentation of architecture.md (the canonical source: MD wins if
+they drift and this file is re-authored). Wording is faithful to architecture.md.
+Self-contained: no build, no network, brand tokens, responsive. The method is the
+handbook's md-to-html.md; the sibling twin is northstar.html.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How paper-boxing is put together and why: the four containers and the one volume, the package and the images, the data flow for a person and for an agent, the API, authentication, the MCP server, storage, the frontend, the site server and the tests.">
+<title>ParkviewLab · paper-boxing architecture</title>
+<style>
+/* ParkviewLab brand — see the handbook's docs/brand.md. Michroma embedded as base64 woff2 (OFL-1.1). */
+@font-face {
+  font-family:'Michroma'; font-style:normal; font-weight:400; font-display:swap;
+  src:url('data:font/woff2;base64,d09GMgABAAAAAC1kAA4AAAAAWlAAAC0LAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGn4bi0QchUQGYACEZBEICoGEJO5PC4NgAAE2AiQDhzwEIAWEWAeFfBuqTLMRVdfUbiJFUaJVeRQllFMR/BcJ8ZirRqVTOiGl0KgxoyalxcGc/Gd/rdpwQP2U3tiWa+Pm1xyhsU9yefhvrc/7XnVV984PwwKpADtEnBApIPXPqqgoZB27ClXCCuhPH5FtVbORHNZlYWFZggJLiMIsIYVll5AXsiAgOwhGQBQwgAhDMIF5z4xHKxjwjBkwpdfTy77879z79xYe5CZFbXH4eB1Ck5h0c4Uz/TUpIAss1OAf1lXJzJ4ai9+BX8Gp5EDN9Km/iz+lVLLwLcvZJFAL1AKdqb7k7v/XaV+rF9n5duAc6wPy6dd/W8pCCVRu0Vzda1nSe1JsyckkkgY8yUDkT4ahZNCOz554vASZBaoAKPwJqV3g6kO5XLRUFMX+bneKtlnAjlS2Zb/kXjiNkNqFxpI3EdUhyy7089tWpIix51MsFdCL2+5LRDjq+pjHMmRFnfu/x9jyA75qswE58lABWVxEgWIJsAVwHQUUBjTUmRo0wtBgxZ47+QWmYpVUp6UuCSZFPazAo1ihFMwVBfM0pJo1Z5SXXh0SgwGDSWdwwAG1azfBF41y1DHh8aB20+XVpaCGBhgXlP9T/TdeXQlu9jfmwejmYuWCzg/KE5lQnB50na1WoZQwFnNMJSA6JZrS5PeooDPHZkDLC7EE+kcmgTef3WKubzLxgHE43cChUL0rrNPRt1FBoYURjwceVp+8Ap58ZRHQ10SXoRkoXcWLic6ovlgX88IuBkWrqFAZJgTKv/ldXfHP+Taf55O8lzfyck7nr3kij+S+3JVk9mVPbvg7o7W5MhtzWZZnUeakyAEJkzM2w3HhAhNPj3TKJclPs2SlXmoU66pnkEoUGvYz/o7f42O8lnAuHsUddcWuxaU4FxNxLA7FWIzGQGyLrmiP1UFEfSqtjtIoiCyE6ZEY0c0LDX8rvMXQLQRhK5+cF5wwCp2sE9UwBYxSoeyQH/7MQL3vTckM2lxHsCxhJ2Yx+rO7dgcBjGvMuOI/8MIxx68SEJl94zHtRQhJ39RNm8+ytrsVE00dXjdYxQz2aw6PmRYMjvhKma37i1m9CfGozdSJKpHFLBopqzKipeFIc64L6A2WFjTfKmMtGsW8z0KWzI1gjhyY7wWn1QjmHUTW8KOb95P38Cxyhp8pF+xfgZ2dl49AemmHOZUhHOCACnOobp2eaaLXRuD2hXWIIWJwGByG2IMjfzChF/H+t4xlIjGB5Ud6C5AuSzBvHy4cfHhu1OQauFNiOCJ7LAjvDA8Svd/IIKuKxE4j15nLOQXsddargaXAbsAOsISGcpy1B+kNd/4B49ToQYLSlXA6kwAN2C5cwmA1TwI/PDLhiD2Hv14jBwbRIWoKRueGVcbGZcOeKzfu/IVIlUGsQKlqNZapxeQ1khCgWRALYVFMzIoOSVU9IjWstmZJ8hNByRfLhEpsthYXFDKCEYxgBCMYwYklOuMykgEDBqyHAYMECHf2MYuPWdO7j49Q2M96uc+e1WCIIYYYYoih2RAKNnDwyOvlO/T4EV02YTKFwy8I4EDgkcJ4UZyOjN0l8ERhauLkqPBdSs6IinDPEurKWbFh1PtZU6uD5myOqUTpO1RYgommpW2gUuHKK6XlIGafPPGq0jIpRH9akLOA0JsK8yXgf1NZdgl4s0q3W2qklSDo3YIJMk2mykqyIlOgsx0aUtOzUo6SEIVbmHvunOE1cyrOAG2NCSN+SAoVDI3fXJoGFDEwmMizDIdtqOhROmuazaj2aEWhhqFbXLBSD2AApzZrgVmM16FIAYPqWeMHN2sFlWwtXkljgmLUSXN23jbpO6VhFJRQ8LJpDYi0ggiQuCWomsxuaA4pU8HEVJlHDLSLE0GkNDY2xkCkmtgQaWW4YG7MzDJbNY4m6YsNdEFExmQMVYwf08JkyRcdSLs4yWhtfWxEB3X/7irwFjdSb5GXMNp7Cq7VeYJb5JSrk+IB4SzVUsQXZsHchsQXA7wM6KYNgMWrRwDttx0qTKFl9ENjPxw0Wuy4a7LPApaYQ8TlhXyUTwpGpVEVONtxjDhsjhmHx/Hg+HP2mZqZaS0sYDF7HkgHSqOxClDLfttyDDisZPfcaegKjdhoCmbLZ5ozjYXZhbkF3LANgA1PzC3XlZEbTGdHn032yB8RnOKez4B4Eb7CmEarR+6bSL/a7Yonzpp0wEG73NBvzHZ77DDgnjvuGoZglChTpU6HLj36WBZh4zDFZWOxJezYc+DSb6+apyP2kntkv7e8+AsQJESkKNFNrUyVJoOoI29cpFiJUmWd+d/G9Q655LAH+gy57JrfXDdjyhvTVjjlofM+uei+rbZ557FzRn22RZPTenTbbAQDBY0COiZFKrRp0KTFmAFDRtSYsWTOghWeW/icCThy4sGWFG4pb758CPkJFCFUmHBJ4sRLECxTDoksebLdlqtKuQqV6hRazlq+E076xTHHHYXBxgVbAvwOiHXAr2DrFwB22x2g2wnkPECijCM66QiMM4qGrtjUlImoRNd5EfVJzVI9ad91AOi1n4GiqQ3hsn4HDWWo40faVsvXQJfGUJVNLKo9J9AG08ySKPVN9PxNOZF+RkaSLmdcLqS72zSE7ipV67VGD3gAM+klA0dMpRsptJcIacEFZnJVzysVPKn8QlHJm1kwBFp2039jpKilaFMooW5RGgDRgW6aqCBwnkNS6Swpb3/JpE0Pg8kz1tlMLuOMz05y1NOGrmjzQaOHkwQ0+2UpWG5ufrVKpd02zSxhkCoT/OeWMvpQKjP+lKSFMKWV8ouctfHW65rtRoSAxwRblOYGAXWpLZcjQJlWDl10vtZSxToiLSRbj4oyVthKQTkxLSedpR1cVYZD0nGLSKaSDdBNbaiw1ZrWShnR8NvviEIJg0uxniiLTdHOPRGTWo83stuFMAgEDQrJSDkLf16NC4FH4RhhRq8sxRUp0vycy1CfGL8EeKxtsVwrJZPWevRe9GihvXcc+k9uBZ0ATgpglRy9WoB9CHoYAjcJOdolyVzlyPTSbxRXFAkM5PUdQcc0MkxaPUBXiEpyxa9uDEbFc6grpuQVvcPIZ1KOkKGSQdbVb5sLnVZL6r3jebTp8GWnRJrwINjubn+PheA0DBruZlvEf7a+cG6LqF1PCK0Ktt8DNZn2/sH4aB37di07360Mr7H3ip5bQDyHnmLIpBHMpnxudS4DagRB2EPXoaEQ4Svd5AXpNknvHuPSuh4T5NmjZJ7IDB/Fmef52cN5Uxgl7BXbfxW69DEdMEgImsvf88jS+tPkv9/p4MK7p+5v9VEfmVBYOcQJUEPgrvFDGoQJ19Vk9srwAZKaqk86j+SqIq3E1Q0allxfhm5Vv0MYQh+Dyj9q5sFBDloELZH4ZFLbBMkQ6Rh+DSyu2Lz5M+jcu9AbOg+7DxxyFechdtK9hbZb4MBetYs9SQRuDNHVe9yDKD2rRikuH5bKHyG1uqws5xpfuZioydbc9zvWKbDoXBe0oW89JCdMk/PfnrNV3xsXND2RoJU0W0MmUtVRn+UNsruLMKUMPEZn3BbOhaBThJ2aA5c/zBa/dT6pY3JvJyV1gTnlSZo8eZYDxE+pGNC0vly/9c8b7CiwVrkxl0pAEasG6EWiJ7Dx/SbHQpBUsIcMqb1vEshZSfjgDaQf5pEZaCNfXTuf0givzZwtxgfxx6bo5m73MTvpaEwjjQQVUjRZQRpr2I585xyUR25wEVeIqM8E8OtFwA2xJTKOxItvaYTmILrKJXW7mCKOrqXY9dAmTaFRu1+bh/Wmt+tzF5jMv8DwuWRGWsjVuEfV/+DrEJztoeTJ4si8MdCGZotBh8wjw/+COJM/OKfoQd4LKA9VpxBGSCj6x3uzrNDG0k8LiA7S5wFrIYxUARyzmPT5eR5QXp0oevSOEpGpeWQyONBURxOS8TsZs4DmeTQx/zKKgF6ZLkDSFM3CHzdtMrkbJkKW9SE8MuoEsKTWN7QtegiXkmni0vRaclVaHvqFH8B2/ni+Ov0K1bhXasbh5+NZCuczj/xGKTomywfPCVJ7ZPaxd8uoSw5A1VtrxPCnlEEqH1nVV9xhBDNYmfrmWqxKcXnFd5Yr1KlHGJEOA/wHhYk6wFhdCFWxjDsoUffchHCcCxj9sX33GfNZ7R5PBwH6E2SFS2j3okQL/6NkGBMer0FpZFmckVpslWIaKLuiC6cet9EfH2YnJH3YcPEbCLts0ZQhz+u40tLGh9KgZKrQ+781HHl1M4ReIm0r1GIkgFsqHk6GGpSVBy3ScSwTJZPO3joqx1hXxNiJ6MH8b/oMiTSUGU+HbdupiFqdEDN+HkIE7qgaUJZs7jDfvE/2D2c/Gl6TgkXHrg5OlUHDZVaKUeTtEU9MmuDlSmGykbCFiEvJNuXDx52ltZJsDeodHz/og7ZsJ1VYtVPwoC40x/lg2siO6ESsenAf1eyFba9ICA3iRjgEDJTvMk0VIUG6QcXEmpuatqqf3VAMK3AdZ+o562KWQ9FCoIpk2pHUMtgoCQZ6Q3Wa1GIXQOdrtJQCbgBDAFf0pPPe2b3HyBe8nOerbdos0+kq2UknDMUG121U7E3AC5HYZBNzcsOm4mRgA0O7fegYgxHS7rbi8coVaqxp/MZiNsjkzX/Q+Kqjk2JzRYJyeXf5OF/LsYUhhLgHre2s0bjn23V+F0cXONqiKPUeLY00WiRp9bF0B3Q312x6uqqfuog7Nw+3PHcP3ZmC4wOXAo48FJqj7wdzphlvpr/SdsVzvEiXq8Pz8U6ycic/g8o6qY3kjl5/QU34FcsMaDnvXQncfw+o3Hv/FhZf0bdFBjqEc0orq+nqNlFyzLKoMrNVR2WwfMqwdTGs+TkbzqlefQG96GXvZOvgOrApr2/Xisqe97AhRAjSAJOYuK6B4HupKaYHFcJqwbW8mMNY9oT/s17IAtZxdVjBWzekJJnm8mgibItQNnimY0+NNC1qgLfvr15P8f6hSN0eRKOsSNDrI4r2oX1PDEs/qJj54JXE+uzTM3Y8spCYql1tZu9YTa5beuaBNv5xhPjh9QYds0vwJJQrTjqnhUvdUAqstHFl7ARwIK3JAuR1LEW5fFHS1Cd0LxYrXcstLIwWN968/6Lqodg7EAPm7rJ9J6gcQyrOSSOjY7evoKgR3loZnecWSngQx6m0JQNBh4WaYIO67dw5uLXQ3CYtZQs6NtQcYfUFz4eC4WnpAeCJIADPUlb3E3Fv7KNx3nChR8s3QRge45iT/kb5IAYqdeM2Fl1Q2rmzOCRU7XaRIRnfEktJ+R7zH+IutGrcMtBNxR6qltZGQ8xPBqhmL3VxszB51VoQZdOIsWzll5ZXbv/urhFG3v7s3YVULyZC0LBiM2R76GN1xfUvnqJLAR74GGmd2ByFTVbWK0wwlj8ny1dlulwlO4Wvd4pxOiSBxlBdeZJ9cW5LSFXva52e3XBhp25DbV80f1BAaeJSQP9QuUTbQYSpswPaS3b0cqpH4lM/OVSpRL2pNUcb0ox3R8g8gIvb4vP8TGcXqQ5KWomFvDMZqNrlwAAlNeAUMLKFmhMFGYmznyJ1KgLVlREvcUhgE/AYLhvcKmD+cB4wZ3ASErS3wWGHMABqfu6LTJS37k0WYHEhwHkNxGD+NABfziNONMD8RQCXPRCQObkAl0EYLr3z7K8KXjS6de2Kw80KezU23xhY532wW/zD4oynIyHbfl43s7g51y1jjWGtApKvO6Ka52xVnV8UWdPueFK5WAayD/wrljqS/XvSFji/dF8z4u2rjHh2Am1yJOuDbmsMdXdOadR74S36Lw7xx/Rn8VX1wintzu6h26r1fo4DG9GJiMf7So2417rnTb2GR3BHmAYGVM+bOg/34Zbf+B9w3vCAqce8J77rF/lD04oKy3eX+Lv07+ON9R5T6p2/AIEIkiBl8X2x0TbtPhn62gNOQmyZLm04dU7q0Rcb7/mFnFTK4N5zj1cP0YhxctLOUA/FwwMNQ4yVJwGRCBAwQIQDGYsDfCI/ceIByNpYKvFpvIWD5EGk61O57iOPO5DreW4A1Vq1Vnk8UZXXbZ6o0ztnjAqSucf6PWfJwcdTwm/9rWr2107rW47IZAASVTBEUtH7BQd88p7UcFBd1I0j/KVrwKss7UC0v6t+73it72XZVfksQHzOa8Fbi+T4U74EUjU4OAWdB+liRIpah+2h88rd6RW7cVise/ynAx53PjkpDKwsrtGmAF27irFPZoNLOUfahr9cbPxyggEM4WLoCv8v3PEe3H3qz3ft7O6c0q4X4qv0Z8f4h/Rf4C31XlManc7/kWDr/1c4Jsm71c4ml+63Nbo5Rj50qHT+1mmlHl+nLk/K22dteFPU49rthFjZyidZb6Oat7nWM3h3vuovEvNGvA4gN+YJo7fBxDrXUibvzhcmOH7hJG5LKPHK/LjHb0BPc6nYyjfCuifWcqf75nR8crD4XaIBSHK/Gt14+PbMbOGgLzPTYrdXgkqAVkZwsHq0WrhH6oMtHUrxjxvHjHNStUSaqWHnfIRb8rsHZO7f/dLmtWw68hwOrOQ3CvZtKtS2n/eOjmv1yuRWFLvf1ZKb5JjI7+oVe3HLU4AABiB0Tptw+FsnSGu8lIcFajA7woJky9/5kLgPPUsnRD04khpnGOmaaJgWZBOoEqaq4uOd8//Na0lkvPJN8TKHz7Gmrw36unZ2S7Yytz+sDD5nav0bzL/d8pSrEqjQ3pYdEoe9T491bvuGigZ0IxpQoNTeRr9MilSo2jHj03rp7oaF8fxMrrTY8a6a3AQqHSZSjHMl9lfVjlBsmFcp/9jIRNaDdS0ee/syjXnz+66oGw5m+J/fj1YL1lY7nKd2D8vvqUodzKXiGENJquCM1ggWx7xJ+de6MZM/3LhGcGyTVNtu/s5VXe5oSdD9X1DH4t5K32sq5GX5db1snLUcREAXA1kCQEJFn8sXC1XqIJ0x/VmhVkMbijrPaQ+4MEDUOI2s4UA4XoAnS+h1/Rk/dNwCgNu5wFOr3AxLesZcMSycYU9tXAB4dB+5HgB36bYWdN3T2JGyNkXD/vk9typrjR/7n++HOcKFSsDk/7IJg/+DSQBBpr9EyXNAFgGQGTkoUwwkzOpeV7FeualvR32Xks3DQ5/UM7SxVpNtSSF7dNrJX1RjuDp+LqjEo6XD70/9ict/OhKrbb9OWqMo7VqbCzp928d/Y+ZwTaKCD/9HX42NKiWYsyL9hKywBO6oIvzDrZw1OBFYurb8/wdD821X0VroKVl3dMad2Pt97lSZBeuNRjdQ5XmKsogKdLUtqjMu73m6aSInN8kyauk6ffHMRYnWDUv0L03dt5yFVdvv9OUHWF9Sr/UvpY7kK66ILEeX22I3xvlt+GY4EeURlbOez68upTVNoyzHDkeRL73krEa7HzvC0HfTpuUH1YLN/rKLdcqXWlZYsc2E+rk8PDSAF6OtU6DAXUEFp2i9kz9dgyWtCBiAqMHin64nz6lY7qwN+zB9OezrzjoVnndaJ2tcknhtkXxkZlFxouV4Z4/l4eLkGdaI/BpLksw6DAINvbOqvJ11YV8vT4d92Fmrann2jbVT58ieE5KozNsmF45cXyRJZI139rAOS5Kvs45sndQoFPDFMSdWRw2NxPw0ZoTg2sXURGuw5NsYlNZpOV6cOLNohCugwCpOtjwcW/5Dp7+vNsR96QHZMlaaWcnpagWbzSmbJL8qrYo9w6kUSK1rrYrq893itFK1Pzps44VonVxiG5cy2O+RtDTtQ4KNYT9ZphZoveqCgsi69t8UzwFVf6xBn7Yr5XOJZ29CIj4obL2j4y94yt1eXr84u44VzihSUqTIXHM7GWFaOwLsBneszzOrSl4apR2rDakVic3h3Tv8vmvtPavCG60L/Xp5OvjDSK2S5dmnpks37N/z12qQmfbmRlw22LvtlLKYbxoT8Ghw5IJ+vr/5Gii9Jg7miDJdTukC/hl1IcFo0cHnQvls/1znGi6/qFjA6eJ8BieH473/qsndJPXFKLDE86HyyPJxtZIgwZ5e44CU7+5HTzOtR2vDXpyYDvswuozJO330u1NAaj1iUM8kzQ2XfjTTmlroNBvLSZxmjey7xJIkssY6V7JGxEkznH0j05ycJLMRaAUGIMO9TRF3ePuf05Kk89c7znYss+wUh+w1aLn0QpjRXnEMCBzhoEXHEUKcRERuksQGy7ahbUd3HrkGMhkp+SxBCIXrVPNDEmA1MADV/viTK7i1yOlWNltgFhWVYn+lWwnUubc24hSv6+gLiXOtfdg68Q3b3mMvsoo+XScQMSAc3ea1cuHB5jFMzayaIxavRS/cUYOtPszXvKS3c1PeVlvHnVivs7c2/OuVY5FnIeX33Nkb6ydPN+sN1AW/Q2wv2TnHDGzIP6mfLS+Lr1UxaBHPBYHlCHmc07nRbJiTWKJuUCXS8Bvn71hW2puuVbC5lMWPccga8srgXjRu71tlNMM/yPy+26LMpul0k471oegzRoddV8S91c884LPf5wN1S2CjR8H8xEL55/Ij/Rq0rbT864ncbzZBONp5cuNWvUbtRI0hvJxOK1GuFtuMN3YaxrHSVkee12xkNsyo+9l9sN9bKtM9KXRZKgvVHWU6nAN0Ot//34M61SVnlduXskMGIT4rcDHww7kCbzZtiSTi3FLzOxsayGTAJJCPhfCA/xv95W2tRpctDzD/GAqaT/KP8lZx6wjIpVB5Jr51cHOh8lX2olu+HusHTk2YhLFDOrwn1YqdkrGY58rCWrvEXyftUuzqPEbUINYsMD5sGc7piS1ySwvNPomLpz3oIdDg77hfgaVco3vowgPjDF/tmjQE9of0bv00Xhlm21Z+wkczPI4/oTZ+9JJaEl8rAo80jsg3qoAZ2iHspKtf+8rloS2Drgv20bv/GjYG8daWnhBqhkaaHVIkj80wUxZp4+4eKr4VTUoVsJ56GDvh4tvVtiK4c9Cfpg0y2XA9/8g72bLeBYPatCCPlUm8xcHm97pUVzNOHJAvszr0oM3vDXIyZpi6Xrf3rmFnsUhrVYTR+0jV95PkxawdKuYHjEpD4xxDLwtZV2Vf0zRP+9kM7Ng6DJsP3Q4U/TJqjDzPD5z3LedLG01XlDWpTqi3ycZ28S8W5E6YwnXd59Qs6dvLxFmi0rwrI3rMZM2lF0JRe8UxRKDeXlnEXR70WYwSz01avlA43C/3vH4A41PRI91vryj6uR/py+1iPcdXjyIJnJ0UOT8gjghxcIZjE/smwMEpIhSuztc/icBRRuavVkjlB6dZxuB8GvHEzO8r6/bXefNWxIuOrW2MmuEBQXrdDu/oIUjPb6GTW+DS4EWK1Yq2nq01HWB1c+9L9VRNrIndHR8wrLO6b79KJFcbdzpZ4Na0VvhR7+jUJ4eGZut3x3VPhlMqrZB29+adU0yxGTs8YOwtvRkbUIwxNw4V+hgHx5gOKIITRu5VXXxCZlVvUbb7j4PMGctVRqhhqu8HmJf5rUYfB0Ub5k+iSmxbtsJmrFpc8p/DbMENFzRXR7LSDOOqrr9MOYuAkAEdITyXtdkuOV5/l/9EaDCBcDT5OD8q0Giz68ePrfgQ5E7pFHzP9Joa6sXz+AwEK8tm19b73dd+uwy1knm/eqlbq7v4yjWgiw1I2Fm52uFoh1TN/jHk9R/QifLQKk8Xc6WFDtdUxx8Ve92oILyePz/U5m3JdN/bsif53LPY307Ir+tn+7Iacm4nc4DM4QA4znHmte02SQXH1qCc30rZ+HU9uUrx9xOVk2JcLHG9qiW3HoodPaOd6mSYEyM2l0od7qnKRRrzJxgYHjLH9uqRNI10rarxoRXmGUI6AB4PgKJpABwgh5cPmyNIuPzMVHwDyPgb8FdK/pdrN/9bQuRZjy7LmVeObyrZ/F8ySi+Ybl99Dt3ozuxtdgU4R6tz6+1q8djXl21sNf/5qQavM1OwtwWJWdIsh99UDz6S39OQOpuXi0WpBV80xKbBzvvnMe+snvwEAxg2pFiGyuEYCs2J4Phlo2A6DrmtJbv1YwxzUp3OaI/m2a4owzdzqGp8+1jTNKpHtlstrdG7mYGvkcxxLn+2hLcx01HdfXIcrqseeVW1pe7mVeJ43WBS/1frYF++se28qVMOBnQAf2gATg7KMmWTg4ADMVcYUdbpItFsDvZXibWwiArPTPFOo2oWYEEdgcpCRZ0E1JG99pz1Bo4QzIpuqARwIsxd21YMDHf1sTHBIbP/9RMquE8WCYY6iaEh3ltQzK1gmp8IY7U9xGb/x/L3S033zFpDrimK989NT/DIWFIPEs9KiiCMMZSJdocExh1lFVn7xIC/YDXWqvYimuO+oTYnMjfaUGjo724gSZYmL+sTnFcq9fMH2Pg7jhYOwPXfyd9/d8K6CE8ItGUA0mcIBEIIfBaOMiSTgWzBdSd96ujRsyBrLvkwSaXhSLudk10G1KZMxTU+MODwIBnHe9ca7ApP3MJu2lpYbGVRWphqm1dsf1yl/eJbzTJX00oJGk0+djKaq/nb9j9190em7+7KZvUmFx9y7dnqH6aqqVCY3juJcxwXWlVP9y8o4VuUPf8TKm3Pet9fPbJJbQS8nB9ZCwEjsu2lxRu/Hcw+fBCzM0EtewAbZX8/eAXXF83kLNzOb7b81K6avVux3TpFNpYqm/oy0at2Rs5uarv5SstdnHEe/SPy6d/CKcDN2A3fFGQLJJB7CedAWsg7RvYmOV/dtYd+H6CgkJNEkTO7/DSKvIZ31Dd/IvsDQpLSqDYmUARS3jTtYphytkdbU1D5dJYs/w15tillh4UP/mkeSIvVqDZJaQEh/eSn+ub9XsPqRXGMLoo8iVMIBUC/79qTrw5O8LbnvF51oH1HbZN9UDQjlUyNZgbaN9Xad1QHntfrIStXMs+rJ0dLg2xyYmNtcoKk0erJ51cyK8XW1WUhuXma9baB0cxORhB8zx1kM8Ck4CQB9HMECZMz32VwZOUmJ79aqDIwoBE0QkRZESQrVH2zcyAQJtDnM2ULmRkUsJvO9sLgNz5Rx3tjhPjGMFiQNBsAm2atjXtBaf70IBjmTj1NuBsTdUy42SZR/9EcfuCB703hBbeLa4Lt+b5WflyfGY9AYdR0fl1ajijUe/OBHaw02XPt3WFWsTYpcnnq6ZX8FZbY1fKorxEEgsZTlyN4Xk7KcUGcNQ47G9JL9TayKQSi4NgextcwlyqPFS7WHg1OZX8k7VLEqQ+oW8npBauUXmWfBKeJDalEpbJfElVgE1hND7var1GSuN5AP+h92DI64DhnoxJ13mpPacadA235x0YkSYrR/LRNCpWKLQ1td526fmDrr6lx+vOENw6hVaab8r1nVPbsalzjoZjPTAgRFToHxrq3M/ok/EnLRrULGpFeg6GdVt32yXsyF8yPeg5zN0T37/VTUZ34c/2kZr3nokAtu+2jg0CIfVx2uEQZX/B1tz3QUGs96u/cUTa1QCKgi6eM+DUYBk0W10XVRJxDWalhSYra1dT4+HbFwvXqr1n+gSHJi30V/RVLqSFrD60y+pF91FkYFJ5WRrUqia8KaFotlOjWGBrv5mq0KdRHqib6pTofJxNMfb1/i09armVZElcZICv8pTvfxBFaGjgIfviq3nPsMNmGsy3er7v63gm8AE89mnAw1v+ox3aLtcplBi8qZQem/tG2X6Nc/oT/PahVa9Fm67zakbCwcCTYkZLoZOOMRTpJMvl1OyqJJVqkdnKHWDdfX1pjObGyXSddv7C58LL5KsuK2PywM2SKdRSu3VzIiLUhQtiy1vGJwRqdjoQgkdLtDIpPY7QhrmMdlk6eyQ8LcLxh4vSlrT9f1Xy/KRucM1m6PKTCPj+xeG1+ESNTudDfepV029Dd8KVxudxahvsYyZF9CDeNNnB0NIiO5L6TQTgF4bhssGNQgKPxgbFzA5OIULSZGGSZ177evSw1Dc965em03/ltLY9BAKJF1thfQxkwENI+KFDPUDwVGpjTA/svnK7P3LEs23Tnivfv5X7n2bRV0O3ArW7L9rf32FaJ4gwT/G1xrQi9W/8v4mZ9ZjJPnbE1jN+0tFBJLqMmjOey7XpEmqGxSGocbpLcK5LqNujD1JI4cWeDj6Sry0di14gTbyaqoo4cAQC8NTY24JKNm/AcAL6JLbKyyGNHy6Isov7cD+8993K69+a9D9zr9Qf1xsMPv+XU8KnqGxA/cLXaLOUGw6HeaX3/hPBNqbRfv7go9PDxmyeXdWMenRdWtl7seSuZczLaQX+PGEHw4hmlD42ym+Zr2OX72pt0hErFtKUTbiXYt5asYJovbaRScUuwY1z6Zi8TG0Y5w09tvXjsaNwmZgCdebePSqVSKVQq7eUPtDQQi6FFUKeVvBIEgbtd22vlzdQ1jIeMaDc53f4Qnx+luJbk6nRq9/KT1alCWhCDLnZYn1d7ReF5HgWAQCQa2GH1pLKjhNfpyItYIapOvIfCNfxUVrXHGe/oT1QoUerwM0zREl4fwEl8DkggAUiYAzJ3ehYmFyYXoG02b8uaAJC25wYikaY0KZyqJSkkNMWvWePV1YQhsJi6h3C0zHQSyMwGNAmoxK0gP5Pe84dRBP9NwmPZPiW4UTgIghByOcdJqa1rpRnbDpFDtohccdnvu8TqU3jjppbSwgo71QhTvv0dT7QqzT/IOX3LFI6jnrD0HMEB8kcxlZBlykxQD+fTz1yAbfMX5H9ze8sCnp0+GfC0HOxvc7n8L3PwsidPRyBL/+KanD+zPz/ugtSdvxqlxhiNrFtjNJwa+6vxTn8i47RYw+E16wxH0mKY5duy6o/sNPGktzx7RK7BgpciYLJHup4yo31G1q0xHKZdKakxRjsbjaTG+iCwuCDDWwdXgT53umBPh5rumnGfWVChe/tkWvBC0KCzZdVAK3zPt8kk8OnGy8f9Uvf0kmf8rczr6mr/PEP2fpwxP2J9r10nx3v6zu3cwWfql0ldAo4kiVMzczfffWmZ+AkUqvdDXa1HBZX2/8hAoRpe1LmN9iSXJCl2r7QrZCVyCETIEvOTxFn7LIGyEgb05pIMQuz6PFDX+eQkPz1oNgdiovFF+XYvE2TlfV4XP2Cr12WsNHadj/7Wp1ol2cjSp7aR0LDr/AhJTwHtY5PM3mc0h4Ft6lAOsbmexm6irvOpmfwUIHdaXLP2+Bp1kFujDmNpmPwUIK9sdG+A5QXLoxVQ1/mgJT89aDZW8jrohVGw3UsvrQCMZCTkDaMcus770vpUqySXsthC8wxIWjPG4tR1ftYoP61dTI05vDcvPGntcTYiypkHSwxvGM1i1/nAWp9qXmVZo9gsuSy5LLksuayxNqgxtdFIWOSJq8R2HFU84ynYtpcmZbgexBdgbexru11u6ehhmadK0FXGyhNtbWA0fbuOeq+1vaM29A1QL/ol+yqdn9heCOTxQFKrANlAJomnTJ6V5+R5+YX8Un4lvb54hz775avdYV6Wz70yFet9WYu6/jEYzb5V/AQOA8Nhw0+Kmkae9faEHPnRscjrEvSTiIW5/lnjQKB9OfyEyLOOnlDnJcjm+1xsJFjGRlE8N0kKsfycYNvDGrjD6fbSaMzPaTzyDKDJ0R/KpLVYP0XyMwQEBImIDdbTPL6v/X0TREQdDTr7RntCX9OHeGG2TnVboMLcPZ/CiKijgYqJCRCHNVhAIO/hDzbiIKcHG9kg1+h57JL5yNzeCJSIwZOD9bvmY2c/rxN9Lj9HOdqo+Gg0zkDjEVFHA5UPl8yI+oQjTNUfrJe1YGDzxXhMFqCP/tHiXIcaV87Buv+aqeh49a3EwdwlDUDaCbhdwOZHwLyE4gzsbKsZpBgohjTPiEqU4UQVL/7P6PkK1MN6HFG9i0vfZKdmF9SLglO9ylw/oe/SAePQrGHR/OQ6urkT4DAYEDu/5WC799RE3esPBXUFAHwfox0AG1658WCBvYC2O6u85hnlJAI8MjS7/ZlU7N+tqFSPvtq/9wBfDgR86m4Gq1rlAwkCvUHTPgeLmug0xLNmYy0rpYlEgvhISKJhFJoc0c+JRUB28jdiizQRqEY9MMvmSEt/0XRPaD9uS9ODyKq+kWgIthZ2Bjhqc/vkpXACYv3PF6kZaHYmiKvM09q4xCDl8V57hybE4HSceFi4nOanNdgUxkfEcJstT30pyfFxihF1tdWxzFIwQIvGtDYhvlC+xL1z4Evg/MktLo/0NGfrB4Bp1XSkCTXiuTnBBySwpRM3jiVTs6aV6hyiiaMwCSsJY30/pFiUx+3yWweQ4w7z7RGgptofb2sZg1ccURvk1I2iqSi/j6fomRxsLg+++caqvIEMBFMtLhvnRAPpZoJ27XGPePjdB7BpXVMOcH1ZgMPgMB3AtMNbwCwgiCIZJ3uSLJB7Eqij4p2FsKB15gC+aI1oMfX0BPKJvADgS88YGaK4be0V/6u5yeACepdap5+dZn+xCXZe+tEbGjr7UXjS4fDYz3LLRbqAS4Ap8DwniofMYjm17CFRQdYLShSPt7gjIIGZlo775f2uEVM5+klcFNkf5AlOp9h2eDe8D8BoxJIDKNSCcwCVi/cH0HBcPoCuWuIBDBwuphpCcJ1qdchyVTzYgQ2zVSoMzOpmLtFeoZJkloVmPlcaJVC4CITZClS24VISi8XKlbBGCYmYia6otIBUWorDwRJt2tfAE6dymEeixnplCmioZjUCvmUFpptmTod0tZizHC+L1QtBvrzC4WVKVEljz5ruyRS0zWd4OwFOtRczkvjYksTzXFC1WLvI9LNBueXBBfkKFqMI2EPzOOIDljuKQxEtmUWUyC4Vwkig8rLwCGq2J8hXmOnVyDp4tiGqFIqXr0R4XuTUvCZ2i9OzBq1QjF7p2A8Cd9/vwHIzQYGLsuyX7YCNLPDksPQOX65LLvuNFWs2bF1x1TXXH3GfC2q65HkEbrgp322bHHSIo0+cOD8af/I77ipwjzsPntX7YOlHFJJZ1M5aihQgUJkg7wUrD2hBhZDHup/ZfdWWqQ0a1IgI+mP4c8FIj4U6sZZr0KjekBUOi/NZvASJ1kmSrAmhmUyKVGnSfXRKBuSsHQaCCdrPKJB6PP5WlzFWKGCKmBKmjKlgqpgapg4TvvvDn6ERmqGFGto0qVuEbRzNCDPDpqyhikGLDw1HyPlSpkJEzBtu2nm/OOqY4/Ya86tJdEq4FK21Wpv12rXI9FarM5ihY5Ut1PzPFydwmDLRTWKUMHQphF7oh0EYhlEYBysWBTtMbOCnwwNPPfTIsya8ojJ3WS4t/KqyasXCvUrKskviY8OYNbcU2gscXWklV5VVz45w9PVTKLsld8lzoAwqVN9bNiOUnn2MEld8UTLao6PjS6Eg0EwK6AcBCWS+wN7XnUcFEUdfaE97w0ztyLLzAkd7N3hjV8XPhdOY+xVlTlSUXFlTnbQcW4BRl08hVKy+viQnM+LkClwBAA==') format('woff2');
+}
+
+/* Palette: the three brand colours (teal, teal-deep, sage) carry identity; red marks the two
+   caveats and nothing else; blue and yellow are unused in this document. */
+:root{
+  --teal:#00C2C7; --teal-deep:#004f52; --sage:#90b095; --ink:#141414;
+  --red:#E2483D; --blue:#2547C8; --yellow:#F2B33D;
+  --paper:#f3eee2; --paper-2:#ece5d4; --card:#fbf8f1; --muted:#5d6258; --line:#d4cab5;
+  --code:#161412; --code-text:#ece5d4;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --display:'Michroma',var(--sans);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px;}
+a{color:var(--teal-deep);text-decoration-color:var(--teal);}
+a:hover{color:var(--red);}
+code{font-family:var(--mono);font-size:.92em;background:var(--paper-2);padding:.05em .35em;border-radius:3px;}
+
+header.site{border-bottom:3px solid var(--ink);padding:22px 0 18px;margin-bottom:40px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+header.site .mark{height:54px;width:54px;flex:none;}
+header.site .word{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:14px;color:var(--teal-deep);line-height:1.1;}
+header.site .word small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.22em;}
+
+.hero{margin:8px 0 30px;}
+.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.22em;color:var(--muted);margin:0 0 10px;}
+.hero h1{font-family:var(--display);font-size:34px;line-height:1.2;margin:0 0 16px;color:var(--teal-deep);text-transform:uppercase;letter-spacing:.02em;}
+.hero .rule{height:6px;width:150px;background:var(--teal);margin:0 0 22px;}
+p.lede{font-size:19px;max-width:760px;margin:0 0 14px;}
+
+/* Contents: the eleven sections, so the shape of the document is seen before it is read */
+.contents{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;padding:0;list-style:none;}
+.contents li a{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--teal-deep);background:var(--card);border:1px solid var(--line);padding:5px 10px;}
+.contents li a:hover{border-color:var(--teal);color:var(--teal-deep);}
+
+.section-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:54px 0 18px;font-weight:600;display:flex;align-items:center;gap:10px;}
+.section-label::before{content:"";width:12px;height:12px;background:var(--ac,var(--teal-deep));}
+.prose{max-width:760px;}
+.prose p{font-size:16.5px;margin:0 0 14px;}
+.prose h3,.tier h3{font-family:var(--display);font-size:13px;letter-spacing:.02em;margin:26px 0 10px;color:var(--teal-deep);}
+a.decided{font-family:var(--mono);font-size:.82em;letter-spacing:.02em;white-space:nowrap;}
+
+/* Figures and panels (the exemplar's vocabulary) */
+.figure{background:var(--card);border:1px solid var(--line);padding:14px 16px 10px;margin:0 0 22px;max-width:760px;}
+.figure.wide{max-width:none;overflow-x:auto;}
+.figure svg,.panel svg{width:100%;height:auto;display:block;}
+.figure.wide svg{min-width:720px;}
+.figure .cap{font-size:13px;color:var(--muted);margin:8px 0 0;font-style:italic;}
+.contrast{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 18px;}
+.panel{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--teal);padding:14px 16px 6px;}
+.panel .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--teal-deep);margin:0 0 8px;}
+.panel p{font-size:15px;margin:0 0 10px;}
+
+svg .box{fill:var(--card);stroke:var(--ink);stroke-width:1.5;}
+svg .top{fill:var(--teal-deep);}
+svg .top.stock{fill:var(--sage);}
+svg .vol{fill:var(--paper-2);stroke:var(--ink);stroke-width:1.5;}
+svg .txt{font-family:var(--mono);font-size:10px;fill:var(--muted);letter-spacing:.04em;}
+svg .txt.ink{fill:var(--ink);}
+svg .txt.small{font-size:9px;}
+svg .name{font-family:'Michroma',var(--sans);font-size:11.5px;fill:var(--ink);}
+svg .port{font-family:var(--mono);font-size:11px;fill:var(--teal-deep);font-weight:600;}
+svg .lead{stroke:var(--teal-deep);stroke-width:1.6;fill:none;}
+svg .lead.thin{stroke-width:1;}
+svg .plain{stroke:var(--muted);stroke-width:1.3;fill:none;stroke-dasharray:4 3;}
+svg .head{fill:var(--teal-deep);}
+svg .head.plain{fill:var(--muted);}
+svg .stack{fill:none;stroke:var(--teal-deep);stroke-width:1.2;stroke-dasharray:5 4;}
+svg .person{fill:none;stroke:var(--ink);stroke-width:1.6;}
+svg .agent{fill:var(--teal);}
+svg .agent2{fill:var(--teal-deep);}
+svg .locked{stroke:var(--teal-deep);stroke-width:1.4;fill:none;stroke-dasharray:4 3;}
+svg .lock{fill:var(--ink);}
+
+/* The containers table: genuinely tabular, kept as a table */
+.table-wrap{overflow-x:auto;margin:0 0 20px;}
+table.containers{border-collapse:collapse;width:100%;min-width:720px;font-size:14.5px;background:var(--card);border:1px solid var(--line);}
+table.containers th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:2px solid var(--ink);font-weight:600;}
+table.containers td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+table.containers tr:last-child td{border-bottom:none;}
+table.containers td:first-child code{font-weight:600;}
+
+/* Definition lists: route groups, the gate's answers, the nginx directives */
+dl.defs{max-width:760px;margin:6px 0 14px;display:grid;grid-template-columns:max-content 1fr;gap:0;background:var(--card);border:1px solid var(--line);}
+dl.defs dt{font-family:var(--mono);font-size:13px;padding:9px 14px;border-bottom:1px solid var(--line);color:var(--teal-deep);white-space:nowrap;}
+dl.defs dd{margin:0;font-size:15px;padding:9px 14px 9px 6px;border-bottom:1px solid var(--line);}
+dl.defs dt:last-of-type,dl.defs dd:last-of-type{border-bottom:none;}
+dl.defs.wrapdt{grid-template-columns:minmax(200px,36%) 1fr;}
+dl.defs.wrapdt dt{white-space:normal;}
+
+/* Scope tiers: three, ordered, each including the one below */
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:0;max-width:760px;margin:6px 0 10px;border:1px solid var(--line);background:var(--card);}
+.tier-cell{padding:12px 14px;border-right:1px solid var(--line);position:relative;}
+.tier-cell:last-child{border-right:none;}
+.tier-cell .k{font-family:var(--mono);font-size:12.5px;color:var(--teal-deep);font-weight:600;}
+.tier-cell .n{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;}
+.tier-cell p{font-size:14px;margin:4px 0 0;color:var(--ink);}
+.tier-cell::before{content:"";position:absolute;left:0;bottom:0;height:4px;background:var(--teal);width:var(--w);}
+.t1{--w:33%} .t2{--w:66%} .t3{--w:100%}
+
+/* The three safeguards: peers, each with its numeral */
+.safeguards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 16px;}
+.safeguard{position:relative;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);padding:14px 44px 12px 14px;overflow:hidden;}
+.safeguard .big{position:absolute;right:6px;top:-4px;font-family:var(--display);font-size:46px;color:var(--paper-2);line-height:1;pointer-events:none;}
+.safeguard p{font-size:14px;margin:0;position:relative;}
+
+/* Callout: a caveat the reader must not miss */
+.callout{border-left:4px solid var(--red);background:var(--card);padding:14px 18px;margin:6px 0 18px;font-size:15.5px;max-width:760px;}
+.callout strong{font-family:var(--display);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--red);display:block;margin-bottom:4px;}
+
+/* Tests: three tiers */
+.tier{max-width:760px;margin:0 0 6px;}
+.tier .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--teal-deep);margin:22px 0 6px;}
+.tier p{font-size:16.5px;margin:0 0 14px;}
+
+footer.site{margin-top:64px;border-top:3px solid var(--ink);padding-top:20px;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.03em;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+
+@media (max-width:680px){
+  .contrast,.safeguards,.tiers{grid-template-columns:1fr;}
+  .tier-cell{border-right:none;border-bottom:1px solid var(--line);}
+  .tier-cell:last-child{border-bottom:none;}
+  dl.defs{grid-template-columns:1fr;}
+  dl.defs dt{border-bottom:none;padding-bottom:0;}
+  dl.defs dd{padding-left:14px;padding-top:2px;}
+  .hero h1{font-size:26px;}
+  header.site{padding:18px 0;margin-bottom:30px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <!-- logo-only mark: pure shapes, no font dependency (see the handbook's docs/brand.md) -->
+    <svg class="mark" viewBox="60 115 170 170" role="img" aria-label="ParkviewLab" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(200,200)">
+        <rect x="-88.572067" y="39.569824" width="9" height="28" fill="#90b095"/>
+        <circle cx="-83" cy="10" r="30" fill="#90b095"/><circle cx="-111" cy="20" r="22" fill="#90b095"/>
+        <circle cx="-55" cy="18" r="21" fill="#90b095"/><circle cx="-119" cy="4" r="16" fill="#90b095"/>
+        <circle cx="-47" cy="6" r="15" fill="#90b095"/><circle cx="-99" cy="-14" r="24" fill="#90b095"/>
+        <circle cx="-71" cy="-22" r="20" fill="#90b095"/><circle cx="-103" cy="-32" r="16" fill="#90b095"/>
+        <circle cx="-79" cy="-38" r="15" fill="#90b095"/><circle cx="-59" cy="-14" r="13" fill="#90b095"/>
+        <rect x="-5.820663" y="39.498325" width="6" height="22" fill="#90b095"/>
+        <circle cx="-2" cy="26" r="17" fill="#90b095"/><circle cx="-19" cy="29" r="13" fill="#90b095"/>
+        <circle cx="14" cy="27" r="12" fill="#90b095"/><circle cx="-11" cy="12" r="13" fill="#90b095"/>
+        <circle cx="7" cy="13" r="14" fill="#90b095"/><circle cx="-4.2837896" cy="-2.7139649" r="11" fill="#90b095"/>
+        <circle cx="6" cy="-2.14414" r="7" fill="#90b095"/>
+        <g transform="matrix(0.84873049,0,0,0.84873049,-48.542203,6.0416091)">
+          <path d="m -16,-78 a 28,28 0 0 1 32,0" fill="none" stroke="#00C2C7" stroke-width="4" stroke-linecap="square"/>
+          <path d="m -28,-88 a 46,46 0 0 1 56,0" fill="none" stroke="#00C2C7" stroke-width="2.5" stroke-linecap="square"/>
+          <polyline points="0,-28 0,-36 0,-62" fill="none" stroke="#00C2C7" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+          <polyline points="24,-14 32,-22 53.7,-28" fill="none" stroke="#00C2C7" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+          <polyline points="-24,-14 -32,-22 -53.7,-28" fill="none" stroke="#00C2C7" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+          <polyline points="0,28 0,35 0,56" fill="none" stroke="#00C2C7" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+          <polyline points="24,14 30,20 46,28" fill="none" stroke="#00C2C7" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+          <polyline points="-24,14 -30,20 -46,28" fill="none" stroke="#00C2C7" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+          <circle cx="0" cy="-62" r="11" fill="#00C2C7"/><circle cx="0" cy="-62" r="5" fill="#004f52"/>
+          <circle cx="53.7" cy="-31" r="11" fill="#00C2C7"/><circle cx="53.7" cy="-31" r="5" fill="#004f52"/>
+          <circle cx="-53.7" cy="-31" r="11" fill="#00C2C7"/><circle cx="-53.7" cy="-31" r="5" fill="#004f52"/>
+          <circle cx="0" cy="56" r="9" fill="#00C2C7"/><circle cx="0" cy="56" r="4" fill="#004f52"/>
+          <circle cx="46" cy="28" r="9" fill="#00C2C7"/><circle cx="46" cy="28" r="4" fill="#004f52"/>
+          <circle cx="-46" cy="28" r="9" fill="#00C2C7"/><circle cx="-46" cy="28" r="4" fill="#004f52"/>
+          <polygon points="0,-28 24,-14 24,14 0,28 -24,14 -24,-14" fill="#00C2C7"/>
+          <polygon points="0,-23 20,-11.5 20,11.5 0,23 -20,11.5 -20,-11.5" fill="#004f52"/>
+          <line x1="0" y1="-23" x2="0" y2="23" stroke="#00C2C7" stroke-width="3" stroke-linecap="square"/>
+        </g>
+      </g>
+    </svg>
+    <span class="word">ParkviewLab<small>paper-boxing</small></span>
+  </header>
+
+  <div class="hero">
+    <p class="eyebrow">architecture</p>
+    <h1>paper-boxing</h1>
+    <div class="rule"></div>
+    <ul class="contents">
+      <li><a href="#what-it-is">what it is</a></li>
+      <li><a href="#the-four-containers">the four containers</a></li>
+      <li><a href="#the-package-and-the-images">the package and the images</a></li>
+      <li><a href="#data-flow">data flow</a></li>
+      <li><a href="#the-api">the API</a></li>
+      <li><a href="#authentication">authentication</a></li>
+      <li><a href="#the-mcp-server">the MCP server</a></li>
+      <li><a href="#storage">storage</a></li>
+      <li><a href="#the-frontend">the frontend</a></li>
+      <li><a href="#the-site-server">the site server</a></li>
+      <li><a href="#tests">tests</a></li>
+    </ul>
+  </div>
+
+  <div class="section-label" id="what-it-is">what it is</div>
+  <div class="prose">
+    <p class="lede">paper-boxing is a small site manager for a home lab, the place where a project's documents live before its first release; what it is and why it exists are stated in <a href="northstar.html"><code>northstar.md</code></a>. The REST and MCP contract is <a href="api.md"><code>api.md</code></a>, and the way the stack is built, run and backed up is <a href="deployment.md"><code>deployment.md</code></a>. This document describes how the software is put together and why; the dated record of the choices is <a href="decisions.md"><code>decisions.md</code></a>, and each choice below links to its entry there.</p>
+  </div>
+
+  <div class="section-label" id="the-four-containers">the four containers</div>
+  <div class="prose">
+    <p>A deployment is one compose stack of four services and one data volume. The three paper-boxing images are built from one commit and carry one version (<a class="decided" href="decisions.md#2026-09-15-one-version-for-the-three-images">decided 2026-09-15</a>); the site server is a stock nginx (<a class="decided" href="decisions.md#2026-09-15-nginx-as-the-site-server">decided 2026-09-15</a>).</p>
+  </div>
+
+  <!-- The one figure that carries more than prose: the four containers, their ports, the one
+       volume, and the token flow from a person and from an agent to the one backend. -->
+  <div class="figure wide">
+    <svg viewBox="0 0 950 476" role="img" aria-label="the four containers, their ports, the one data volume, and how a person and an agent reach the one backend" xmlns="http://www.w3.org/2000/svg">
+      <!-- the stack -->
+      <rect class="stack" x="108" y="14" width="828" height="422"/>
+      <text class="txt" x="178" y="32">one compose stack</text>
+
+      <!-- a person -->
+      <circle class="person" cx="76" cy="150" r="13"/>
+      <path class="person" d="M50,208 C50,184 102,184 102,208"/>
+      <text class="txt ink" x="76" y="230" text-anchor="middle">a person</text>
+
+      <!-- an agent -->
+      <polygon class="agent" points="76,306 98,319 98,345 76,358 54,345 54,319"/>
+      <polygon class="agent2" points="76,315 90,323 90,341 76,349 62,341 62,323"/>
+      <text class="txt ink" x="76" y="380" text-anchor="middle">an agent</text>
+
+      <!-- frontend -->
+      <rect class="box" x="232" y="118" width="190" height="84"/>
+      <rect class="top" x="232" y="118" width="190" height="7"/>
+      <text class="name" x="244" y="146">frontend</text>
+      <text class="port" x="410" y="146" text-anchor="end">:35840</text>
+      <text class="txt" x="244" y="164">reads the REST API</text>
+      <text class="txt" x="244" y="179">per-browser session store</text>
+      <text class="txt" x="244" y="194">on its own filesystem</text>
+
+      <!-- mcp -->
+      <rect class="box" x="232" y="290" width="190" height="84"/>
+      <rect class="top" x="232" y="290" width="190" height="7"/>
+      <text class="name" x="244" y="318">mcp</text>
+      <text class="port" x="410" y="318" text-anchor="end">:35842</text>
+      <text class="txt" x="244" y="336">reads the REST API</text>
+      <text class="txt" x="244" y="351">writes nothing</text>
+      <text class="txt" x="244" y="366">no token store</text>
+
+      <!-- backend -->
+      <rect class="box" x="470" y="205" width="220" height="84"/>
+      <rect class="top" x="470" y="205" width="220" height="7"/>
+      <text class="name" x="482" y="233">backend</text>
+      <text class="port" x="678" y="233" text-anchor="end">:35843</text>
+      <text class="txt" x="482" y="251">REST API at /api/v1</text>
+      <text class="txt" x="482" y="266">enforces every rule itself</text>
+      <text class="txt" x="482" y="281">reads and writes /data</text>
+
+      <!-- sites (stock nginx) -->
+      <rect class="box" x="470" y="36" width="220" height="84"/>
+      <rect class="top stock" x="470" y="36" width="220" height="7"/>
+      <text class="name" x="482" y="64">sites</text>
+      <text class="port" x="678" y="64" text-anchor="end">:35841</text>
+      <text class="txt" x="482" y="82">nginx:stable-alpine, 80 inside</text>
+      <text class="txt" x="482" y="97">read-only, root /data/sites</text>
+      <text class="txt" x="482" y="112">no authentication</text>
+
+      <!-- the volume -->
+      <rect class="vol" x="770" y="152" width="150" height="176"/>
+      <ellipse class="vol" cx="845" cy="328" rx="75" ry="13"/>
+      <ellipse class="vol" cx="845" cy="152" rx="75" ry="13"/>
+      <text class="txt ink" x="845" y="188" text-anchor="middle">paper-boxing-data</text>
+      <text class="txt" x="845" y="204" text-anchor="middle">/data</text>
+      <text class="txt ink" x="784" y="236">sites/&lt;slug&gt;/…</text>
+      <text class="txt ink" x="784" y="258">staging/</text>
+      <text class="txt ink" x="784" y="280">paper-boxing.sqlite3</text>
+
+      <!-- a person reads a site straight from nginx (no token) -->
+      <polyline class="plain" points="76,137 76,78 462,78"/>
+      <polygon class="head plain" points="470,78 462,74 462,82"/>
+      <text class="txt" x="270" y="68" text-anchor="middle">reads the site at &lt;PUBLIC_SITES_URL&gt;/&lt;slug&gt;/</text>
+      <text class="txt" x="270" y="94" text-anchor="middle">straight from nginx</text>
+
+      <!-- a person signs in at the frontend -->
+      <line class="lead" x1="104" y1="160" x2="224" y2="160"/>
+      <polygon class="head" points="232,160 224,156 224,164"/>
+      <text class="txt" x="172" y="150" text-anchor="middle">signs in at /login</text>
+      <text class="txt" x="172" y="176" text-anchor="middle">the browser never</text>
+      <text class="txt" x="172" y="190" text-anchor="middle">holds the token</text>
+
+      <!-- the frontend calls the backend with the session token -->
+      <polyline class="lead" points="422,160 446,160 446,228 462,228"/>
+      <polygon class="head" points="470,228 462,224 462,232"/>
+      <text class="txt" x="452" y="148">REST API with the session token</text>
+
+      <!-- an agent connects to the MCP server with an agent token -->
+      <line class="lead" x1="104" y1="332" x2="224" y2="332"/>
+      <polygon class="head" points="232,332 224,328 224,336"/>
+      <text class="txt" x="172" y="322" text-anchor="middle">POST /mcp</text>
+      <text class="txt" x="172" y="348" text-anchor="middle">Bearer</text>
+      <text class="txt" x="172" y="362" text-anchor="middle">&lt;agent token&gt;</text>
+      <text class="txt" x="172" y="376" text-anchor="middle">on every request</text>
+
+      <!-- the MCP server confirms the token, then forwards the call -->
+      <polyline class="lead" points="422,332 446,332 446,266 462,266"/>
+      <polygon class="head" points="470,266 462,262 462,270"/>
+      <text class="txt small" x="452" y="304">confirmed: GET /api/v1/tokens/self</text>
+      <text class="txt small" x="452" y="318">then the call, with the same token</text>
+      <text class="txt small" x="452" y="332">and X-Paper-Boxing-Via: mcp</text>
+
+      <!-- a file above the tool-call cap goes to the backend's published port -->
+      <polyline class="lead" points="54,340 40,340 40,410 660,410 660,297"/>
+      <polygon class="head" points="660,289 656,297 664,297"/>
+      <text class="txt" x="118" y="400">a file larger than the tool-call cap, with the same agent token</text>
+      <text class="txt" x="118" y="426">PUT / GET /api/v1/sites/{slug}/files/{path} on the published port</text>
+
+      <!-- the backend reads and writes the volume -->
+      <line class="plain" x1="690" y1="247" x2="762" y2="247"/>
+      <polygon class="head plain" points="770,247 762,243 762,251"/>
+      <text class="txt" x="730" y="239" text-anchor="middle">read-write</text>
+      <text class="txt" x="730" y="262" text-anchor="middle">/data</text>
+
+      <!-- nginx reads the volume read-only -->
+      <polyline class="plain" points="690,78 845,78 845,131"/>
+      <polygon class="head plain" points="845,139 841,131 849,131"/>
+      <text class="txt" x="698" y="68">read-only, root /data/sites</text>
+
+      <!-- legend -->
+      <line class="lead" x1="166" y1="455" x2="190" y2="455"/>
+      <text class="txt" x="196" y="459">carries a token</text>
+      <line class="plain" x1="300" y1="455" x2="324" y2="455"/>
+      <text class="txt" x="330" y="459">no token</text>
+      <rect class="top" x="410" y="449" width="12" height="12"/>
+      <text class="txt" x="428" y="459">paper-boxing image, one version</text>
+      <rect class="top stock" x="640" y="449" width="12" height="12"/>
+      <text class="txt" x="658" y="459">stock nginx</text>
+    </svg>
+    <p class="cap">The MCP server is a client of the backend's REST API exactly as the frontend is; the backend enforces every rule itself, whichever client calls; the frontend and the MCP server mount nothing.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table class="containers">
+      <thead><tr><th>Service</th><th>Image</th><th>Port</th><th>Reads</th><th>Writes</th></tr></thead>
+      <tbody>
+        <tr><td><code>backend</code></td><td><code>ghcr.io/parkviewlab/paper-boxing-backend</code></td><td>35843</td><td>the data volume at <code>/data</code></td><td>the data volume: <code>sites/</code>, <code>staging/</code> and the database</td></tr>
+        <tr><td><code>frontend</code></td><td><code>ghcr.io/parkviewlab/paper-boxing-frontend</code></td><td>35840</td><td>the backend's REST API</td><td>its own per-browser session store, on its own filesystem</td></tr>
+        <tr><td><code>mcp</code></td><td><code>ghcr.io/parkviewlab/paper-boxing-mcp</code></td><td>35842</td><td>the backend's REST API</td><td>nothing</td></tr>
+        <tr><td><code>sites</code></td><td><code>nginx:stable-alpine</code></td><td>35841 (80 inside the container)</td><td>the data volume at <code>/data</code>, read-only, with <code>root /data/sites</code></td><td>nothing</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prose">
+    <p>The backend is a FastAPI application over SQLite; the frontend is a NiceGUI application; the MCP server is a FastAPI application carrying the MCP SDK's low-level <code>Server</code> behind a stateless <code>StreamableHTTPSessionManager</code> at <code>/mcp</code>; the site server is nginx with a configuration of a dozen directives, inline in the compose file. Each paper-boxing image listens inside its container on the number it publishes, so the port mappings are same-number; nginx listens on 80 inside and is published as 35841. Every paper-boxing image probes its own <code>/health</code> as its health check (the site server has none), and the frontend and the MCP server start once the backend is healthy. The ports are fixed in <code>common/config.py</code> (<a class="decided" href="decisions.md#2026-09-15-the-ports-35840-to-35843">decided 2026-09-15</a>); the address at which people and links reach the site server is <code>PAPER_BOXING_PUBLIC_SITES_URL</code>, from which every site's URL, <code>&lt;PAPER_BOXING_PUBLIC_SITES_URL&gt;/&lt;slug&gt;/</code>, is built. The README's configuration tables give every variable each service reads, with its default.</p>
+    <p>The volume, <code>paper-boxing-data</code> by default, is mounted read-write at <code>/data</code> in the backend and read-only at <code>/data</code> in the site server; the frontend and the MCP server mount nothing. It holds three things. <code>sites/&lt;slug&gt;/...</code> is the served tree, one folder per site. <code>staging/</code> holds uploads in progress and sits on the same filesystem, so that a finished upload moves into place by one rename; the backend empties it at every start, since nothing there is in progress after a start. <code>paper-boxing.sqlite3</code>, in WAL mode, holds the accounts, the sessions and agent tokens (one table, told apart by type), the sites (slug, display name, creation time) and an index of the files (size, modification time and sha256 per file). The whole volume is mounted into nginx, rather than <code>sites/</code> alone, because a Compose volume <code>subpath</code> needs Docker 26 or newer and the deployment host's version is not assured; with <code>root</code> at <code>/data/sites</code>, nothing beside that tree is reachable over HTTP (<a class="decided" href="decisions.md#2026-09-17-the-whole-volume-mounted-read-only">decided 2026-09-17</a>).</p>
+  </div>
+
+  <div class="section-label" id="the-package-and-the-images">the package and the images</div>
+  <div class="prose">
+    <p>One distribution, <code>paper-boxing</code>, in the src layout under <code>src/paper_boxing/</code>, with four subpackages (<a class="decided" href="decisions.md#2026-09-15-one-distribution-and-one-dockerfile-with-three-targets">decided 2026-09-15</a>). <code>common/</code> is the contract and what every component shares: the pydantic schemas of every request and response body, the route table, the slug and path rules, the token types and scopes, the REST client <code>BackendClient</code>, the in-memory fake backend for tests, the error-body convention, the environment helpers, and the one place the version is derived from the package metadata. <code>backend/</code>, <code>frontend/</code> and <code>mcp/</code> are the three components. The core dependencies are pydantic and httpx; each image installs one extra on top: <code>backend</code> (fastapi, uvicorn, starlette, argon2-cffi), <code>frontend</code> (nicegui, httpx) and <code>mcp</code> (<code>mcp[cli]</code> pinned below 2, fastapi, uvicorn, starlette, httpx). <code>tests/test_import_boundaries.py</code> walks the source with <code>ast</code> and keeps the boundaries: <code>common</code> imports none of the three components, a component imports <code>common</code> and never another component, and the package root imports <code>common</code> only. Each component starts as <code>python -m paper_boxing.&lt;component&gt;</code>, also installed as the console script <code>paper-boxing-&lt;component&gt;</code>.</p>
+    <p>One <code>Dockerfile</code> builds the three images. A base stage on the uv <code>python3.13</code> slim image copies <code>pyproject.toml</code> and <code>uv.lock</code>; each of the three targets installs its own extra with <code>uv sync --locked --no-dev --extra &lt;component&gt;</code> (the dependencies first, without the project, so that layer caches across source changes, then the project), sets its <code>PORT</code>, declares its <code>EXPOSE</code> and <code>HEALTHCHECK</code>, and runs <code>uv run --no-sync python -m paper_boxing.&lt;component&gt;</code>; only <code>backend</code> declares <code>VOLUME ["/data"]</code>. The <code>Release</code> workflow builds the three targets in a matrix for <code>linux/amd64</code> and <code>linux/arm64</code> and pushes them to GHCR with the tags <code>X.Y.Z</code>, <code>X.Y</code> and <code>latest</code>; there is no PyPI publishing, because paper-boxing is designed to run in Docker (<a class="decided" href="decisions.md#2026-09-15-images-on-ghcr-only">decided 2026-09-15</a>). The MCP subpackage follows the handbook's five-module layout for an MCP server (<code>config.py</code>, <code>__main__.py</code>, <code>server.py</code>, <code>tools.py</code>, <code>schema.py</code>) plus the <code>permissions.py</code> its reference servers carry, and one addition of paper-boxing's own, <code>auth.py</code>, the token gate described below. It serves Streamable HTTP only, with no stdio transport, because it runs in the stack on the Docker host for every machine on the LAN.</p>
+  </div>
+
+  <div class="section-label" id="data-flow">data flow</div>
+  <div class="contrast">
+    <div class="panel">
+      <p class="lbl">a person</p>
+      <p>A person opens the frontend and signs in at <code>/login</code>; the frontend calls <code>POST /api/v1/auth/login</code>, keeps the returned session token in NiceGUI's per-browser store, and from then on calls the backend's REST API with that token for every page and every action, through one shared HTTP client. An upload streams from the browser through the frontend to <code>PUT /api/v1/sites/{slug}/files/{path}</code> with its size declared; a download goes through the frontend's <code>/download/&lt;slug&gt;/&lt;path&gt;</code> route, which streams the file from the backend with the person's session, because the browser never holds the token. The person reads the site at <code>&lt;PAPER_BOXING_PUBLIC_SITES_URL&gt;/&lt;slug&gt;/</code>, straight from nginx, which serves the file the backend wrote.</p>
+    </div>
+    <div class="panel">
+      <p class="lbl">an agent</p>
+      <p>An agent holds an agent token that a person created under Tokens, with the scope the person chose. It connects to <code>POST /mcp</code> on the MCP server's port with <code>Authorization: Bearer &lt;token&gt;</code> on every request, the handshake included. The gate confirms the token with the backend's <code>GET /api/v1/tokens/self</code> before anything else runs; the tools the agent sees are those its scope allows; a call is forwarded to the backend's REST API with the same token and the header <code>X-Paper-Boxing-Via: mcp</code>, and the backend enforces the scope again and logs the call under that token. A file larger than the tool-call cap goes to the backend's published port with the same token. What the agent writes is on the volume, served by nginx at once.</p>
+    </div>
+  </div>
+
+  <div class="section-label" id="the-api">the API</div>
+  <div class="prose">
+    <p>Every route lives under <code>/api/v1</code> and speaks JSON, except file bodies; every route except sign-in needs a bearer token. In outline:</p>
+  </div>
+  <dl class="defs">
+    <dt><code>auth</code></dt><dd>sign in, sign out</dd>
+    <dt><code>sites</code></dt><dd>list, create, one site, delete with the slug as confirmation</dd>
+    <dt>files and folders</dt><dd>list one folder, upload one file as the raw body, download one file, delete one file, delete a folder with an explicit recursive choice</dd>
+    <dt><code>tokens</code></dt><dd>list, create, the calling token's own record, revoke</dd>
+    <dt><code>users</code></dt><dd>list, create, change one's own password, remove</dd>
+  </dl>
+  <div class="prose">
+    <p><code>/health</code>, <code>/admin/version</code>, <code>/docs</code> and <code>/openapi.json</code> sit outside <code>/api/v1</code> and need no token. Every error, whatever produced it, has the body <code>{"error": {"code", "message"}}</code>. The contract, route by route with every status and code, is <a href="api.md"><code>api.md</code></a>; the route table itself is <code>common/routes.py</code>, from which the backend registers its routes, the fake backend registers the same, and the client builds its URLs, so the three cannot drift, and <code>tests/test_routes.py</code> checks that <code>api.md</code> names every route in the table.</p>
+  </div>
+
+  <div class="section-label" id="authentication">authentication</div>
+  <div class="prose">
+    <p>Accounts are several and of equal standing: there are no roles, and any signed-in user adds and removes accounts, creates agent tokens and revokes any agent token (<a class="decided" href="decisions.md#2026-09-15-several-accounts-with-equal-rights">decided 2026-09-15</a>). The first account is created from <code>PAPER_BOXING_ADMIN_USERNAME</code> and <code>PAPER_BOXING_ADMIN_PASSWORD</code> when no account exists; the variables are ignored once one does, and when they are unset and no account exists the backend starts and logs that nobody can sign in until they are set. There is no self-registration. The last account cannot be removed (<code>409 last_user</code>). Removing an account deletes its tokens with it, through the database's foreign key. A user changes their own password with the current one, and the change signs out that user's other sessions. Passwords are stored only as argon2id hashes (argon2-cffi, a random salt per hash, the cost settings inside the encoded string) and re-hashed at sign-in when the settings have been raised; a sign-in with an unknown username verifies a decoy hash, so it takes the same time as a sign-in with a wrong password.</p>
+    <p>There are two kinds of token.</p>
+  </div>
+  <div class="contrast">
+    <div class="panel">
+      <p class="lbl">a session token</p>
+      <p>A session token is issued at sign-in for the UI, acts with the full rights of its user (<code>remove_destructive</code>), and expires after a sliding period (<code>PAPER_BOXING_SESSION_DAYS</code>, default 14) that every authenticated request moves forward; an expired session is ended when it is first presented.</p>
+    </div>
+    <div class="panel">
+      <p class="lbl">an agent token</p>
+      <p>An agent token is created by a signed-in user with a name and a scope, does not expire, and lives until it is revoked or its owner's account is removed (<a class="decided" href="decisions.md#2026-09-15-agent-tokens-without-expiry-and-management-by-session-only">decided 2026-09-15</a>).</p>
+    </div>
+  </div>
+  <div class="prose">
+    <p>Both kinds are 32 random bytes presented as <code>pb_</code> followed by 43 URL-safe base64 characters, shown once at creation and stored only as sha256 digests; a presented secret is hashed and looked up by its digest, so no secret is ever compared, and every use is recorded. The scopes are ordered tiers:</p>
+  </div>
+  <div class="tiers">
+    <div class="tier-cell t1"><div class="n">tier 1</div><div class="k">read_only</div><p>list and download</p></div>
+    <div class="tier-cell t2"><div class="n">tier 2</div><div class="k">read_write</div><p>adds creating a site and uploading</p></div>
+    <div class="tier-cell t3"><div class="n">tier 3</div><div class="k">remove_destructive</div><p>adds every delete</p></div>
+  </div>
+  <div class="prose">
+    <p>A token at one tier may do anything at that tier or below.</p>
+    <p>Each route has one access rule: public, any valid token, a scope of at least the route's tier, or a session token only. The session-only routes are sign-out and every route under <code>tokens</code> and <code>users</code> except <code>GET /api/v1/tokens/self</code>, which any valid token may call (it is how the MCP server confirms one), because managing accounts and tokens is a person's act; an agent token on one of them gets <code>403 session_required</code>. A missing, unknown, revoked or expired token is <code>401 unauthorized</code> before any other check, and a scope below the route's is <code>403 forbidden</code>. The backend enforces every rule itself, whichever client calls; a request that came through the MCP server carries <code>X-Paper-Boxing-Via: mcp</code> and is logged as such, under the user and the token that acted, and no password or token secret is ever logged.</p>
+  </div>
+  <div class="callout"><strong>plain HTTP on a private LAN</strong>The deployment model is plain HTTP on a private LAN: passwords and tokens travel unencrypted, and there is no lockout after failed sign-ins; the README and the deployment guide say so plainly.</div>
+  <div class="prose">
+    <p>A tool call carries a file base64-encoded inside a JSON-RPC message, so the MCP server caps the files its tools carry at <code>PAPER_BOXING_MCP_MAX_FILE_MB</code> (default 8 MiB, decoded), and the tool descriptions say so. A larger file goes through <code>PUT</code> and <code>GET /api/v1/sites/{slug}/files/{path}</code> on the backend's REST API with the same agent token, up to the backend's own cap (<code>PAPER_BOXING_MAX_UPLOAD_MB</code>, default 200). That is why the backend's port is published rather than kept inside the compose network (<a class="decided" href="decisions.md#2026-09-17-the-backend-port-published">decided 2026-09-17</a>); nothing else needs it from outside.</p>
+  </div>
+
+  <div class="section-label" id="the-mcp-server">the MCP server</div>
+  <div class="prose">
+    <p>The MCP server is its own image and process, a client of the backend's REST API exactly as the frontend is, rather than an endpoint built into the backend, so that the backend stays the one implementation of every rule and an upgrade of the MCP SDK never touches the process that writes files (<a class="decided" href="decisions.md#2026-09-15-a-separate-mcp-image">decided 2026-09-15</a>). It keeps three safeguards against token passthrough, taken from the MCP specification's security guidance.</p>
+  </div>
+  <div class="safeguards">
+    <div class="safeguard"><span class="big">1</span><p>Every request's bearer token is confirmed with the backend (<code>GET /api/v1/tokens/self</code>) before any tool runs; the server keeps no token store and nothing between requests.</p></div>
+    <div class="safeguard"><span class="big">2</span><p>Only a token the backend issued is accepted: an unknown, revoked or expired one gets <code>401 unauthorized</code> with no tool run.</p></div>
+    <div class="safeguard"><span class="big">3</span><p>Only a token of type <code>agent</code> is accepted: a UI session token gets <code>403 wrong_token_type</code>.</p></div>
+  </div>
+  <div class="prose">
+    <p>The confirmed token is forwarded to the backend on the call with <code>X-Paper-Boxing-Via: mcp</code>, and the backend enforces the scope again.</p>
+    <p>The safeguards live in <code>mcp/auth.py</code> as <code>TokenGate</code>, the ASGI callable at <code>/mcp</code> in front of the transport. Before it asks the backend, the gate answers what costs no confirmation, each in the contract's error shape with a fixed message:</p>
+  </div>
+  <dl class="defs">
+    <dt>405</dt><dd>a method other than <code>POST</code></dd>
+    <dt>421</dt><dd>a <code>Host</code> outside <code>PAPER_BOXING_MCP_ALLOWED_HOSTS</code> (the transport's DNS-rebinding protection)</dd>
+    <dt>403</dt><dd>an <code>Origin</code> outside <code>PAPER_BOXING_MCP_ALLOWED_ORIGINS</code> (a non-browser client sends no Origin and passes)</dd>
+    <dt>400</dt><dd>a <code>Content-Type</code> other than <code>application/json</code></dd>
+    <dt>413</dt><dd>a declared <code>Content-Length</code> above the body limit</dd>
+  </dl>
+  <div class="prose">
+    <p>The body limit is derived from the cap (a file at the cap, base64-encoded and line-wrapped, inside a JSON-RPC envelope of 64 KiB), replacing the SDK's default of 4 MiB, which would refuse an upload above about 3 MiB. A backend that cannot be reached, or that does not answer the confirmation as the contract says, is <code>503 backend_unreachable</code>, with the detail logged and never answered; once the backend answers again the server recovers without a restart. CORS is limited to the same origin allowlist, and <code>/sse</code>, the path of the deprecated HTTP+SSE transport, answers 405 naming <code>/mcp</code>, so a legacy client fails instead of hanging.</p>
+    <p>The eight tools, each with a title, annotations, an input schema and an output schema, are listed to a token whose scope reaches the tool's tier and refused below it; the table is in <a href="api.md#mcp-tools"><code>api.md</code></a>. A handler validates the slug and the path with the contract's shared rules before calling, so an impossible name costs no round trip, and the backend enforces every rule again. Every failure, the backend's refusal included, comes back as a tool result carrying the contract's error body with <code>isError</code> set, never as an exception the client cannot read. <code>download_file</code> reads the parent folder's listing first and refuses a file above the cap before its bytes travel.</p>
+  </div>
+
+  <div class="section-label" id="storage">storage</div>
+  <div class="prose">
+    <p>A path arrives validated by the contract's rules in <code>common/naming.py</code>: relative, <code>/</code>-separated, canonical (no leading, trailing or doubled slashes), with no <code>.</code> or <code>..</code> segment, no backslash or control character, no segment over 255 bytes and no path over 1024 characters. On disk, <code>backend/storage.py</code> inspects every existing component below the site with <code>lstat</code> and resolves the whole path, refusing as <code>400 invalid_path</code> a site folder or a path component that is a symbolic link, a path whose resolved form lies outside the site, and anything that is neither a regular file nor a folder. Nothing the API writes is ever a symbolic link, so a link inside a site means the volume was changed by hand; the API leaves it alone and listings skip such entries. A site's folder is created with its row and never adopted: a folder already on the volume under a new site's slug is <code>409 site_exists</code>.</p>
+  </div>
+
+  <!-- The upload: the heavy work with no lock held, then a short critical section under the site's lock. -->
+  <div class="figure wide">
+    <svg viewBox="0 0 790 150" role="img" aria-label="an upload: streamed into staging with no lock held, then moved into place under the site's lock" xmlns="http://www.w3.org/2000/svg">
+      <path class="lead" d="M12,40 L12,34 L224,34 L224,40"/>
+      <text class="txt small" x="14" y="24">no lock held: the cap enforced on the bytes received, the sha256 computed as they arrive, the file synced to disk</text>
+
+      <rect class="box" x="12" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="62" y="70" text-anchor="middle">checked before</text>
+      <text class="txt ink small" x="62" y="84" text-anchor="middle">a byte is read</text>
+      <line class="lead thin" x1="112" y1="74" x2="124" y2="74"/>
+
+      <rect class="box" x="124" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="174" y="70" text-anchor="middle">streams into</text>
+      <text class="txt ink small" x="174" y="84" text-anchor="middle">staging/</text>
+      <line class="lead thin" x1="224" y1="74" x2="236" y2="74"/>
+
+      <rect class="lock" x="228.5" y="46" width="3" height="56"/>
+
+      <rect class="box" x="236" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="286" y="70" text-anchor="middle">site row</text>
+      <text class="txt ink small" x="286" y="84" text-anchor="middle">confirmed</text>
+      <line class="lead thin" x1="336" y1="74" x2="348" y2="74"/>
+
+      <rect class="box" x="348" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="398" y="70" text-anchor="middle">the checks</text>
+      <text class="txt ink small" x="398" y="84" text-anchor="middle">run again</text>
+      <line class="lead thin" x1="448" y1="74" x2="460" y2="74"/>
+
+      <rect class="box" x="460" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="510" y="70" text-anchor="middle">missing parents</text>
+      <text class="txt ink small" x="510" y="84" text-anchor="middle">created</text>
+      <line class="lead thin" x1="560" y1="74" x2="572" y2="74"/>
+
+      <rect class="box" x="572" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="622" y="70" text-anchor="middle">os.replace</text>
+      <text class="txt ink small" x="622" y="84" text-anchor="middle">into place</text>
+      <line class="lead thin" x1="672" y1="74" x2="684" y2="74"/>
+
+      <rect class="box" x="684" y="52" width="100" height="44" rx="3"/>
+      <text class="txt ink small" x="734" y="70" text-anchor="middle">index row</text>
+      <text class="txt ink small" x="734" y="84" text-anchor="middle">written</text>
+
+      <rect class="lock" x="786" y="46" width="3" height="56"/>
+
+      <path class="locked" d="M236,108 L236,114 L784,114 L784,108"/>
+      <text class="txt small" x="510" y="132" text-anchor="middle">under the site's lock (one asyncio.Lock per site): a short critical section</text>
+    </svg>
+    <p class="cap">A reader, nginx included, therefore sees the old file or the new one and never a partial one, and a failure of any kind leaves the old file whole with the staging file removed.</p>
+  </div>
+
+  <div class="prose">
+    <p>An upload is checked before a byte is read (the site, the path, then the declared length against the cap) and then streams into <code>staging/</code> under a per-request name, with the cap enforced on the bytes received, the sha256 computed as they arrive, and the file synced to disk, all with no lock held. Only then is the site's lock taken, one <code>asyncio.Lock</code> per site created on first use, for a short critical section: the site row is confirmed to still exist (404 when the site was deleted meanwhile), the containment and target checks run again (400; <code>409 not_a_folder</code> for a parent segment that is a file, <code>409 not_a_file</code> for a folder at the path, <code>409 file_exists</code> without <code>overwrite=true</code>), missing parent folders are created, the file moves into place with <code>os.replace</code>, and its index row is written. A reader, nginx included, therefore sees the old file or the new one and never a partial one, and a failure of any kind leaves the old file whole with the staging file removed. Every change to a site's tree (a file landing, a file or folder removed, the site created or removed) runs under that one lock, so an upload whose body arrived while a deletion ran cannot recreate what the deletion removed. A disk-full or quota error is <code>507 insufficient_storage</code> with nothing half-written. Deleting a site renames its folder into <code>staging/</code> in one step under the lock, so nginx stops serving it at once, and deletes its row, which takes its index rows with it; the parked folder is removed afterwards.</p>
+    <p>The <code>files</code> table is an index of the served tree, kept by every upload and deletion and reconciled by every listing. A listing stats each file in the folder: when its size and modification time match its row, the row's digest is reported without reading the file; otherwise (changed, or placed by other means) the file is hashed and its row rewritten; a row whose file is gone is dropped, and a file with no row is indexed. A folder's total size and newest time come from the rows below it, without a walk, and a site's file count and bytes come from the index. A site whose folder is absent from the disk lists as empty at its root. File operations are single-file: there is no batch upload, no folder upload and no route that creates an empty folder, since an empty folder has no meaning in a static site; folders come into being with the first file below them and stay until deleted (<a class="decided" href="decisions.md#2026-09-17-single-file-operations">decided 2026-09-17</a>).</p>
+  </div>
+
+  <div class="section-label" id="the-frontend">the frontend</div>
+  <div class="prose">
+    <p>The frontend serves several people at once, and its rules keep their sessions apart. Every page is built inside its <code>ui.page</code> function for the connecting client; no UI element and no per-user or per-session value lives at module level, and <code>tests/test_frontend_structure.py</code> checks it. The one shared object is a stateless <code>httpx.AsyncClient</code> wrapped in <code>BackendClient</code>, opened in the application's lifespan and closed at shutdown; every call passes the caller's session token explicitly, so one client serves every signed-in person. Per-tab state, the results of the last upload, lives in <code>app.storage.tab</code>, so it survives a reload of that tab and is never seen from another tab or by another person. Transfers stream: an upload sends each file chunk by chunk with its size declared, and the download route streams from the backend into a <code>StreamingResponse</code>, so a file near the cap is never held whole in the frontend and one person's transfer does not block another's page (<a class="decided" href="decisions.md#2026-09-17-streaming-in-the-frontend">decided 2026-09-17</a>). The upload control accepts several files at once and sends them one after another against the single-file route, a convenience of the page and not a capability of the server.</p>
+    <p>The session token lives in <code>app.storage.user</code>, NiceGUI's per-browser store, keyed by a cookie that <code>PAPER_BOXING_STORAGE_SECRET</code> signs; the frontend refuses to start without that secret rather than run with a guessable key. The store is persisted on the frontend container's own filesystem, under <code>.nicegui/</code> in the working directory, not on the data volume: it is disposable state, and a re-created frontend container asks everyone to sign in again, whilst the backend's sessions and agent tokens, which live in the database, are unaffected. A middleware sends a request for a page to <code>/login</code> (remembering where to return) unless a token is stored for the browser, and answers a fetch, the download route, with a 401 in the contract's error shape instead, so that a sign-in page is never saved as a file. Whether a stored token is still valid is the backend's verdict on the next call, and a 401 there signs the person out. The header carries the official horizontal ParkviewLab logo file, the white artwork on the brand's deep teal, with its wordmark face embedded from the vendored Michroma file so that nothing is fetched from the network (<a class="decided" href="decisions.md#2026-09-17-the-official-horizontal-logo-in-the-header">decided 2026-09-17</a>).</p>
+  </div>
+
+  <div class="section-label" id="the-site-server">the site server</div>
+  <div class="prose">
+    <p>The nginx configuration is inline in the compose file as a <code>configs</code> entry with <code>content</code>, so the stack is one file that can be pasted into Portainer's editor; the fallback for a Compose older than 2.23.1 is in <a href="deployment.md#the-nginx-configuration"><code>deployment.md</code></a>. The directives:</p>
+  </div>
+  <dl class="defs wrapdt">
+    <dt><code>root /data/sites</code></dt><dd>the served tree inside the read-only mount</dd>
+    <dt><code>index index.html</code></dt><dd>so a site's or a folder's <code>index.html</code> is served at its address</dd>
+    <dt><code>autoindex on</code> with <code>autoindex_exact_size off</code> and <code>autoindex_localtime on</code></dt><dd>so a site or folder with no <code>index.html</code> shows nginx's own listing, which during early design is what a person wants of a few hand-made pages before an index exists, and costs one directive and no code (<a class="decided" href="decisions.md#2026-09-17-the-site-server-lists-a-folder-that-has-no-index-page">decided 2026-09-17</a>)</dd>
+    <dt><code>try_files $uri $uri/ =404</code></dt><dd>so a missing path stays a 404</dd>
+    <dt><code>absolute_redirect off</code></dt><dd>because nginx redirects <code>/&lt;slug&gt;</code> to <code>/&lt;slug&gt;/</code> and would otherwise write that redirect as an absolute URL naming its internal port 80 instead of the published 35841, which breaks the link</dd>
+    <dt><code>add_header Cache-Control "no-cache"</code></dt><dd>so a replaced file shows at once, revalidated through the <code>ETag</code> on every request</dd>
+    <dt><code>types</code></dt><dd>adding <code>application/javascript</code> for <code>.mjs</code> and <code>application/manifest+json</code> for <code>.webmanifest</code> to the stock <code>mime.types</code></dd>
+  </dl>
+  <div class="callout"><strong>no authentication</strong>The site server has no authentication: anyone who can reach port 35841 can list every site and read every file, and the server's root, the <code>sites/</code> folder, lists the site folders as a consequence of the listing decision. That is the accepted model for a private LAN, stated here as the northstar asks; an operator who wants the root closed adds one <code>location</code> to the inline configuration, as <a href="deployment.md#the-nginx-configuration"><code>deployment.md</code></a> describes.</div>
+  <div class="prose">
+    <p>Links relative to the site work; a link from the host root such as <code>/css/x.css</code> does not, because every site lives under <code>/&lt;slug&gt;/</code>.</p>
+  </div>
+
+  <div class="section-label" id="tests">tests</div>
+  <div class="tier">
+    <p class="lbl">the unit and component tier</p>
+    <p>The unit and component tier is <code>uv run pytest -m "not network and not integration" -q</code>, what CI's <code>test</code> job runs after ruff, the format check and ty. It covers the contract's pure rules (naming, the route table, the schemas, the scopes, the client), the import boundaries and the single source of the version. The backend's tests build the app over a temporary data directory with a cheap argon2 profile and an advanceable clock: path containment (encoded traversal, symbolic links, special files), the atomic replace and its failure modes, the size cap, the intent guards, the per-site lock, the hashing of passwords and tokens, session expiry, and the access rule of every route. The MCP server's tests drive one session-scoped <code>TestClient</code> over the MCP app, pointed at the in-memory fake backend through <code>server.http_client_factory</code>, since the session manager refuses to start twice: the three safeguards, proven by the fake's record of every request; the gate's own answers (405, 421, 403, 400, 413); tools listed and refused by scope; round trips of a text file and a PNG compared by sha256; and every tool output checked against its output schema. The frontend's tests use NiceGUI's <code>user</code> fixture, which executes <code>tests/frontend_main.py</code> afresh per test against the fake backend, and a second simulated browser: the sign-in redirect, two people signed in at once who never see each other's session whilst the shared sites and tokens are listed to both, a token shown only once, and the upload, replace and delete flows.</p>
+  </div>
+  <div class="tier">
+    <p class="lbl">the contract suite</p>
+    <p>The contract suite, <code>tests/contract/</code>, runs within the same tier and is parametrised over the two implementations of the contract: <code>fake</code>, the in-memory backend in <code>common/</code>, and <code>real</code>, the backend proper over a temporary directory. Every route is exercised against both with the same tests, statuses and error codes, and the same tests passing against both is what proves the fake a faithful model of the real backend, so that the frontend's and the MCP server's tests, which run against the fake, hold for the real one. <code>uv run pytest tests/contract -q</code> runs it alone.</p>
+  </div>
+  <div class="tier">
+    <p class="lbl">the integration tier</p>
+    <p>The integration tier, <code>tests/integration/</code> under the <code>integration</code> marker, runs against the four-container stack built from the tree with the compose override <code>tests/integration/compose.build.yml</code> and the settings in <code>tests/integration/integration.env</code>; CI's <code>integration</code> job runs it on every pull request, and <code>PAPER_BOXING_INTEGRATION=1 uv run pytest -m integration -q</code> runs it locally against a stack brought up with the commands in <a href="CONTRIBUTING.md#testing"><code>CONTRIBUTING.md</code></a>. Without the variable the tier is skipped when no stack answers, so a plain <code>uv run pytest</code> passes on a machine with no stack; with it, an unreachable stack fails. It covers <code>/health</code> and one version on the three services; the frontend's sign-in gate; the MCP handshake over the published port with an agent token minted through the real backend, and its refusals; a site created and filled through the REST API with a session, and a second through the MCP server with an agent token, using the SDK's Streamable-HTTP client; every file fetched through nginx byte for byte and by sha256 with the content type nginx must answer, the <code>index.html</code> at a site root, the listing where there is none, a 404 for a missing path, the redirect that keeps the published port, and a replaced file showing at once; a self-contained page of 100 KiB or more generated in the test rather than committed; the deletions, with the intent guards refused across the stack and nothing of a deleted site left on the volume, inspected through the backend container; and the MCP server answering <code>503 backend_unreachable</code> while the backend container is stopped and recovering when it is started again, run last. Every test removes what it created, so the tier can run twice against one stack.</p>
+  </div>
+
+  <footer class="site">
+    <span>© 2026 Gary Frattarola · ParkviewLab</span>
+    <span>MIT OR Apache-2.0 · canonical source: docs/architecture.md</span>
+  </footer>
+
+</div>
+</body>
+</html>
