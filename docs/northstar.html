@@ -185,6 +185,7 @@ footer.site{margin-top:64px;border-top:3px solid var(--ink);padding-top:20px;fon
   <div class="prose">
     <p>Early design produces documents that change daily: designed HTML pages, visual explorations, specifications, often with scripts. They are made by people and by agents together, and they need a place that is private, on the LAN, updated at once, and writable by both. A wiki is the wrong shape for them, since it rewrites what it stores and cannot hold a designed page as designed; a repository's documentation site is the right shape only once the project ships releases, and it is public. Between the first sketch and the first release, and for everything that must stay private, these documents need a place of their own. paper-boxing is that place: it stores files and serves them, and does nothing else.</p>
     <p>The same shape serves a second use. A repository's documentation site is published from <code>main</code> at a release, so before a project's first release there is no published site to read; the site build's output, uploaded as a site, is that site as it will be published, readable on the LAN. Nothing is added for this: the output is a folder of files like any other.</p>
+    <p>The same shape serves a third use: a page generated on another machine and uploaded afresh whenever it changes, reporting the state of running systems rather than a project's design, is stored and served exactly as a hand-made page is.</p>
   </div>
 
   <div class="section-label">intents</div>
