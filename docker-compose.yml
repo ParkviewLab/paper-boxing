@@ -128,16 +128,16 @@ configs:
           absolute_redirect off;
           include /etc/nginx/mime.types;
           # Source code, configuration and text files are served as text the browser
-          # displays, not as application/octet-stream, which it downloads; a file with
-          # no extension or with an extension in no table is text too (default_type).
-          # The bytes are unchanged; only the Content-Type is. `map` keeps the stock
-          # default, so a source map is served as before. Why the charset is in the
+          # displays, not as application/octet-stream, which it downloads. The bytes
+          # are unchanged; only the Content-Type is. An extension in no table keeps
+          # nginx's stock default (application/octet-stream, set in nginx.conf), so an
+          # archive, a font or a source map downloads as before; a file with no
+          # extension is text through the location below. Why the charset is in the
           # type, the four overrides nginx warns about at start-up and the accepted
-          # costs: docs/architecture.md, "The site server".
+          # cost: docs/architecture.md, "The site server".
           types {
               application/javascript mjs cjs;
               application/manifest+json webmanifest;
-              application/octet-stream map;
               "text/plain; charset=utf-8" py pyi pyw pyx pxd;
               "text/plain; charset=utf-8" ts tsx mts cts jsx;
               "text/plain; charset=utf-8" rs;
@@ -153,9 +153,19 @@ configs:
               "text/plain; charset=utf-8" xdr xsd dtd rng rnc sch wsdl xslt;
               "text/plain; charset=utf-8" urdf xacro srdf sdf launch msg srv action;
           }
-          default_type "text/plain; charset=utf-8";
           add_header Cache-Control "no-cache";
           location / {
+              try_files $$uri $$uri/ =404;
+          }
+          # A request whose last path segment has no dot, or is a dot-file with no
+          # further dot (README, Makefile, bin/deploy, v1.2/NOTES, .gitignore): nginx
+          # reads no extension from such a name, so this location's default type
+          # answers, and the name displays as text. A name with an extension never
+          # matches, so it keeps its table type or the stock default; a folder asked
+          # for without its slash still redirects to it and is listed, since
+          # try_files is the same as above and everything else is inherited.
+          location ~ "/\.?[^/.]+$$" {
+              default_type "text/plain; charset=utf-8";
               try_files $$uri $$uri/ =404;
           }
       }

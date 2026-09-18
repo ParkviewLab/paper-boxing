@@ -5,12 +5,15 @@
 """The compose file's inline nginx configuration, the source of what the site
 server answers, read as text and held to the check in
 `tests/_site_server_types.py`: the `types` block maps exactly the table's
-extensions, the default type is the text type, the charset is written into
-the text type and no `charset` directive is set (its `charset_types` always
-includes `text/html`, which would give every page a charset header), and the
-stock `mime.types` is included before the block so that the block extends
-it. This is the cheap check; the integration tier proves the same through
-the real nginx.
+extensions, the server block sets no `default_type` of its own (so an
+extension in no table keeps nginx's stock `application/octet-stream`), the
+one `default_type` is the text type inside the location that matches a name
+with no extension, that location repeats `location /`'s `try_files`, the
+charset is written into the text type and no `charset` directive is set (its
+`charset_types` always includes `text/html`, which would give every page a
+charset header), and the stock `mime.types` is included before the block so
+that the block extends it. This is the cheap check; the integration tier
+proves the same through the real nginx.
 """
 
 from __future__ import annotations
@@ -23,9 +26,12 @@ from pathlib import Path
 from tests._site_server_types import (
     ADDED_TYPES,
     CHARSET,
-    DEFAULT_TYPE,
-    KEPT_STOCK_DEFAULT,
+    EXTENSIONLESS_LOCATION,
+    EXTENSIONLESS_LOCATION_DIRECTIVES,
+    EXTENSIONLESS_LOCATION_MATCHES,
+    EXTENSIONLESS_LOCATION_MISSES,
     NO_TABLE_EXTENSIONS,
+    STOCK_DEFAULT_TYPE,
     STOCK_OVERRIDDEN,
     STOCK_UNCHANGED,
     TEXT_PLAIN_EXTENSIONS,
@@ -73,13 +79,45 @@ def directives(config: str) -> list[str]:
     ]
 
 
+def locations(config: str) -> dict[str, list[str]]:
+    """Each `location` block's header (what follows the word, before the brace) to its directives."""
+    blocks: dict[str, list[str]] = {}
+    for match in re.finditer(r"^\s*location\s+(.+?)\s*\{(.*?)^\s*\}", config, re.S | re.M):
+        header = match.group(1).strip()
+        assert header not in blocks, f"location {header} appears twice"
+        blocks[header] = directives(match.group(2))
+    return blocks
+
+
 def test_the_types_block_maps_exactly_the_table() -> None:
     assert types_block(nginx_config()) == ADDED_TYPES
 
 
-def test_the_default_type_is_the_text_type() -> None:
-    assert DEFAULT_TYPE == TEXT_TYPE
-    assert f'default_type "{DEFAULT_TYPE}";' in directives(nginx_config())
+def test_the_server_block_leaves_the_stock_default_type_in_force() -> None:
+    """No `default_type` outside the extensionless location: an extension in no table downloads as before."""
+    config = nginx_config()
+    outside = re.sub(r"location\s+.+?\{.*?^\s*\}", "", config, flags=re.S | re.M)
+    assert not re.search(r"^\s*default_type\s", outside, re.M), "the server block must not set default_type"
+    assert STOCK_DEFAULT_TYPE not in types_block(config).values(), "nothing is pinned to the stock default"
+
+
+def test_the_extensionless_location_serves_text_and_keeps_the_root_locations_behaviour() -> None:
+    """The regex location beside `location /`: the text default type, and the same `try_files`."""
+    blocks = locations(nginx_config())
+    assert set(blocks) == {"/", f'~ "{EXTENSIONLESS_LOCATION}"'}
+    assert blocks["/"] == ["try_files $uri $uri/ =404;"]
+    assert blocks[f'~ "{EXTENSIONLESS_LOCATION}"'] == list(EXTENSIONLESS_LOCATION_DIRECTIVES)
+    assert f'default_type "{TEXT_TYPE}";' in EXTENSIONLESS_LOCATION_DIRECTIVES
+    assert blocks["/"][0] in EXTENSIONLESS_LOCATION_DIRECTIVES
+
+
+def test_the_extensionless_pattern_matches_a_name_without_an_extension_and_nothing_else() -> None:
+    """The pattern is plain enough for PCRE and Python's `re` to agree on it; the integration tier proves nginx's reading."""
+    pattern = re.compile(EXTENSIONLESS_LOCATION)
+    for uri in EXTENSIONLESS_LOCATION_MATCHES:
+        assert pattern.search(uri), uri
+    for uri in EXTENSIONLESS_LOCATION_MISSES:
+        assert not pattern.search(uri), uri
 
 
 def test_the_charset_is_in_the_text_type_and_no_charset_directive_is_set() -> None:
@@ -97,7 +135,6 @@ def test_the_stock_table_is_included_before_the_block_extends_it() -> None:
     config = nginx_config()
     include = config.index("include /etc/nginx/mime.types;")
     assert include < config.index("types {")
-    assert include < config.index("default_type ")
 
 
 def test_the_block_names_the_reason_and_the_documentation() -> None:
@@ -113,4 +150,4 @@ def test_the_table_is_consistent_with_itself() -> None:
     assert set(STOCK_OVERRIDDEN) <= set(TEXT_PLAIN_EXTENSIONS)
     assert set(NO_TABLE_EXTENSIONS).isdisjoint(ADDED_TYPES)
     assert set(NO_TABLE_EXTENSIONS).isdisjoint(STOCK_UNCHANGED)
-    assert KEPT_STOCK_DEFAULT == {"map": "application/octet-stream"}
+    assert "map" in NO_TABLE_EXTENSIONS

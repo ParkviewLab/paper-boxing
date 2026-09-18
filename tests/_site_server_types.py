@@ -13,10 +13,12 @@ the behaviour.
 
 The rule (docs/architecture.md, "The site server"): source code,
 configuration, data and plain-text files are served as `text/plain;
-charset=utf-8`, so the browser displays them; a file with no extension, or
-with an extension in no table, is served so too (`default_type`); `map`,
-which the stock table lacks, is given the stock default explicitly so that a
-source map is served as before; the charset is written into the type rather
+charset=utf-8`, so the browser displays them; a file with no extension is
+served so too, through a `location` matching a request whose last path
+segment has no dot (or is a dot-file with no further dot), with the text
+type as its `default_type`; an extension in no table keeps nginx's stock
+default, `application/octet-stream`, so an archive, a font or a source map
+downloads exactly as before; the charset is written into the type rather
 than set with nginx's `charset` directive, whose `charset_types` always
 includes `text/html`, so no page, style sheet or script gains a charset
 header that could override its own declaration; everything else the stock
@@ -104,18 +106,16 @@ TEXT_PLAIN_GROUPS: dict[str, tuple[str, ...]] = {
 
 TEXT_PLAIN_EXTENSIONS: tuple[str, ...] = tuple(ext for group in TEXT_PLAIN_GROUPS.values() for ext in group)
 
-# Extensions whose file is conventionally the whole name (`.gitignore`); nginx takes the
-# part after the last dot as the extension, so the name is the extension.
+# Extensions whose file is conventionally the whole name (`.gitignore`). nginx reads no
+# extension from a name whose only dot is its first character, so the bare dot-file is served
+# as text by the extensionless location, not by these entries; the entries cover a name with
+# something before the dot (`project.gitignore`), which nginx does read as the extension. The
+# integration tier fetches the bare names, which is the case that matters.
 DOT_FILE_EXTENSIONS: tuple[str, ...] = ("env", "editorconfig", "gitignore", "gitattributes", "dockerignore")
 
 # What the compose file adds beside the text types.
 ADDED_JAVASCRIPT: tuple[str, ...] = ("mjs", "cjs")
 ADDED_MANIFEST: dict[str, str] = {"webmanifest": "application/manifest+json"}
-
-# An extension the stock table lacks that the block pins to the stock default on purpose, so
-# that it does not fall to `default_type`: a source map is served exactly as it was before the
-# text types were added (the decision lists `map` among the types to stay unchanged).
-KEPT_STOCK_DEFAULT: dict[str, str] = {"map": "application/octet-stream"}
 
 # The one text type, with its charset in the type itself: the exact Content-Type header.
 CHARSET = "utf-8"
@@ -126,7 +126,6 @@ TEXT_TYPE = f"text/plain; charset={CHARSET}"
 ADDED_TYPES: dict[str, str] = {
     **dict.fromkeys(ADDED_JAVASCRIPT, "application/javascript"),
     **ADDED_MANIFEST,
-    **KEPT_STOCK_DEFAULT,
     **dict.fromkeys(TEXT_PLAIN_EXTENSIONS, TEXT_TYPE),
 }
 
@@ -139,8 +138,39 @@ STOCK_OVERRIDDEN: dict[str, str] = {
     "pm": "application/x-perl",
 }
 
-# A file with no extension, or with one in no table, is served as text too.
-DEFAULT_TYPE = TEXT_TYPE
+# nginx's stock default, set in its `nginx.conf`, which the server block leaves in force: what
+# answers for an extension in no table.
+STOCK_DEFAULT_TYPE = "application/octet-stream"
+
+# The location that serves a file with no extension as text. nginx matches it against the
+# decoded URI without its query string: a last path segment with no dot, or a dot-file with no
+# further dot (nginx reads no extension from either). Its `default_type` is the text type and
+# its `try_files` is `location /`'s, so a folder asked for without its slash still redirects
+# and is listed; everything else is inherited from the server block.
+EXTENSIONLESS_LOCATION = r"/\.?[^/.]+$"
+EXTENSIONLESS_LOCATION_DIRECTIVES: tuple[str, ...] = (
+    f'default_type "{TEXT_TYPE}";',
+    "try_files $uri $uri/ =404;",
+)
+# URIs the location must match, and URIs it must not: a name with an extension, a dot-file with
+# an extension, a folder with its slash, the root.
+EXTENSIONLESS_LOCATION_MATCHES: tuple[str, ...] = (
+    "/site/README",
+    "/site/bin/deploy",
+    "/site/v1.2/NOTES",
+    "/site/.gitignore",
+    "/site/docs",
+    "/site",
+)
+EXTENSIONLESS_LOCATION_MISSES: tuple[str, ...] = (
+    "/site/sample.py",
+    "/site/archive.tar.gz",
+    "/site/.hidden.bin",
+    "/site/v1.2",
+    "/site/docs/",
+    "/site/",
+    "/",
+)
 
 # Types of the stock `mime.types` (nginx 1.30, `nginx:stable-alpine`) that must not change:
 # the page, style, script, data and manifest types a site is made of, and a sample of the
@@ -170,17 +200,30 @@ STOCK_UNCHANGED: dict[str, str] = {
     "mp3": "audio/mpeg",
     "bin": "application/octet-stream",
     "exe": "application/octet-stream",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 
-# Extensions in no table, stock or added, that a site may hold: served with the default type.
-# The stock table has no `ttf` or `otf` (it has `woff` and `woff2`), so those fonts serve as
-# text; a browser loads a font whatever the type says. The same holds for every other
-# extension the stock table lacks (`gz`, `tar`, `wav`, `sqlite`, `pyc`), which is the accepted
-# cost the documents name.
-NO_TABLE_EXTENSIONS: tuple[str, ...] = ("ttf", "otf", "unknownext")
+# Extensions in no table, stock or added, that a site may hold: served with nginx's stock
+# default, `application/octet-stream`, exactly as before the text types were added, so an
+# archive, a database, a source map or a `.ttf`/`.otf` font (the stock table has `woff` and
+# `woff2` only) downloads rather than showing as garbage.
+NO_TABLE_EXTENSIONS: tuple[str, ...] = ("unknownext", "map", "ttf", "otf", "gz", "tgz", "sqlite")
 
-# Names with no extension at all: served with the default type, so they display.
-EXTENSIONLESS_NAMES: tuple[str, ...] = ("README", "LICENSE", "Makefile", "Dockerfile", "bin/deploy")
+# Names with no extension at all, one of them inside a folder whose own name has a dot: served
+# as text by the extensionless location, so they display.
+EXTENSIONLESS_NAMES: tuple[str, ...] = (
+    "README",
+    "LICENSE",
+    "Makefile",
+    "Dockerfile",
+    "bin/deploy",
+    "v1.2/NOTES",
+)
+
+# Folders the type site holds, asked for without their trailing slash: nginx redirects each to
+# its slash form and lists it, whichever location matched (the extensionless one for `text`,
+# `location /` for `v1.2`, whose name has a dot).
+SLASHLESS_FOLDERS: tuple[str, ...] = ("text", "v1.2")
 
 
 def expected_content_type(media_type: str) -> str:
