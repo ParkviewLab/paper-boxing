@@ -94,5 +94,7 @@ Carried out with one departure, made in implementation and put to the owner with
 
 Decided, in conversation: the frontend's header label beside the logo reads `paper-boxing v<version>` rather than `paper-boxing`, the version being `paper_boxing.common.config.VERSION`, the one value derived from the package metadata that the three services' `/health` endpoints report, never a second literal; a development build shows its development version as it is (`v0.2.1.dev0`, for instance); the label keeps its style, and the sign-in page, which has no header, is unchanged. Reason: a person looking at the UI should know which version is running without asking `/health`. Set aside: none recorded.
 
+Carried out as one label. The decision allowed the version in a second, visually subordinate span beside the name, and review weighed it: the longer label moves the width below which the header wraps to two rows from about 800 px to about 880 px (the development form, `v0.2.1.dev0`, is the longest), with no horizontal overflow at any width from 320 px and the label never broken within itself. The span was not taken: no document names screens that narrow as a target, and a smaller version would be harder to read, the very text the decision asked to be read.
+
 ---
 <sub>© 2026 Gary Frattarola · Licensed under [MIT](../LICENSE-MIT) OR [Apache-2.0](../LICENSE-APACHE) · part of [ParkviewLab](https://github.com/ParkviewLab)</sub>
