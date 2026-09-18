@@ -16,6 +16,23 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-09-17
+
+### Highlights
+
+The site server now displays source, configuration and plain-text files in the browser instead of downloading them, with UTF-8 declared in the content type; files whose names carry an unknown extension keep nginx's stock default and download as before. Documentation gains a link to the documentation site under the README title, records a third intended use (a page generated on another machine and served unchanged), and points the status line at the releases page rather than a pinned version.
+
+### Docs
+
+- V0.1.1 [skip ci] (4d078ff)
+- Name the documentation site under the README's title (#10) (4090df8)
+- The README's status names the releases page, not a version that goes stale (#11) (5653018)
+- A page generated elsewhere is a third use of the same shape (#12) (0a98c44)
+
+### Features
+
+- Serve source, configuration and text files as text the browser displays (#13) (12eb3dd)
+
 ## [v0.1.1] - 2026-09-17
 
 ### Highlights
