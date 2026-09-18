@@ -46,7 +46,8 @@ async def test_header_names_the_application_and_the_running_version(user: User) 
 
 def test_header_version_is_the_one_the_package_metadata_gives() -> None:
     """The label's version is `paper_boxing.common.config.VERSION` itself, not a second copy: the layout
-    module imports that name from there, and the header text is composed from it."""
+    module imports that name from there, and `frame()` uses the name rather than the value. What the
+    rendered text is, the test above asserts; how `frame()` spells it is its own affair."""
     assert layout.VERSION is config.VERSION
     module = ast.parse(inspect.getsource(layout))
     imports = {
@@ -57,5 +58,5 @@ def test_header_version_is_the_one_the_package_metadata_gives() -> None:
     }
     assert ("paper_boxing.common.config", "VERSION") in imports
     header = inspect.getsource(layout.frame)
-    assert 'f"paper-boxing v{VERSION}"' in header
+    assert "VERSION" in header
     assert config.VERSION not in header
