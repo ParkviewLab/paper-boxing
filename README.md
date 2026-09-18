@@ -8,6 +8,8 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 A small site manager for a private home lab: named sites of static files served unchanged on the LAN, a web UI for people, and an MCP server for agents, all in Docker.
 
+Documentation: <https://parkviewlab.github.io/paper-boxing/> (the newest release's documentation)
+
 paper-boxing is where a project's documents live during early design and specification, before its first release, where a project that has a repository previews its documentation site before the release that publishes it (the site build's output uploaded as a site), and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change. Several people can have accounts, all of equal standing: any account may create sites, tokens and other accounts, and may remove any of them, except the last account. There are two kinds of token: a session, issued when a person signs in to the UI, and an agent token, which a signed-in person creates in the UI with a scope; an agent is any MCP client holding one, such as a Claude Code session.
 
 ## Status
