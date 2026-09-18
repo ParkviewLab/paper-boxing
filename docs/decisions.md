@@ -80,5 +80,9 @@ Decided, in conversation: this repository's `docs/` is published as a GitHub Pag
 
 Decided, in conversation: designed HTML twins are authored for exactly two documents, `northstar.md` and `architecture.md`; `api.md`, `deployment.md`, `decisions.md` and `in-flight_ideas.md` stay Markdown, reachable from the site through GitHub's rendered view pinned to the release tag. Reason: the handbook's rule that a twin is authored only where the visual channel carries meaning the prose cannot. Set aside: twins for the other four documents.
 
+## 2026-09-17: a page generated elsewhere as a third use
+
+Decided, in conversation: a page that reports the state of running systems rather than a project's design, generated on another machine and uploaded, is a supported third use: paper-boxing stores it and serves it exactly as it does a hand-made page. Reason: no capability is added, since such a page is a file like any other and the backend applies the same rules to it whoever uploads it; it is a question of intended use. Consequence: the northstar's "Why it exists" records a third use beside the documentation-site preview, the README enumerates it, and axiom 2 and the "Not a CMS or a build system" item now say "the one page generated on the server", which they had called "the one generated page of content", a phrase that read as false beside a page generated on another machine. Occasion: a proposed page reporting the state of the organisation's projects and of the lab's services, which is not built and which the northstar deliberately does not name. Set aside: confining the intended use to a project's own documents.
+
 ---
 <sub>© 2026 Gary Frattarola · Licensed under [MIT](../LICENSE-MIT) OR [Apache-2.0](../LICENSE-APACHE) · part of [ParkviewLab](https://github.com/ParkviewLab)</sub>
