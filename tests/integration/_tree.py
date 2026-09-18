@@ -10,9 +10,10 @@ PNG is a real image (a valid IHDR, one zlib IDAT of noise, an IEND); the
 font is the WOFF2 magic number over noise, because the tier proves that the
 bytes come back unchanged with the type nginx maps the extension to, not
 that a browser can render the face. `media_type` is the Content-Type nginx
-must answer, from its stock `mime.types` plus the two the compose file adds
-(`.mjs`, `.webmanifest`). A name with a space and a non-ASCII letter is in
-the tree, since designers' files have them and every hop must encode them.
+must answer, from its stock `mime.types` plus what the compose file adds
+(the table in `tests/_site_server_types.py`; `test_sites_types.py` fetches
+every entry of it). A name with a space and a non-ASCII letter is in the
+tree, since designers' files have them and every hop must encode them.
 """
 
 from __future__ import annotations
