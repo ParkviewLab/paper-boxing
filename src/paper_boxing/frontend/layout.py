@@ -38,10 +38,9 @@ from paper_boxing.frontend import auth, backend
 # "paper-boxing v<version>" to a test and a screen reader, plus a gap of .5em; the sizes, the baseline
 # and the gap were chosen against a live preview. The face reaches the page once, as a @font-face in
 # the head built from the same vendored woff2 and embedded as data, so the label, like the logo,
-# fetches nothing. The logo and the label are flex items that cannot shrink (`shrink-0`): the face is
-# wide, and without that the row would narrow the logo before it wrapped. When the header is narrower
-# than its contents the row wraps to two rows, as it did before, and the logo renders at its full
-# height and natural width at every width.
+# fetches nothing. The logo and the label are flex items that cannot shrink (`shrink-0`), so that when
+# the header is narrower than its contents the row wraps, as it did before, and neither is narrowed:
+# the logo renders at its full height and natural width at every width.
 TEAL_DEEP = "#004f52"
 TEAL = "#00C2C7"
 SAGE = "#90b095"
