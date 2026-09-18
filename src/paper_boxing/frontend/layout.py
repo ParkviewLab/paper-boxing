@@ -22,12 +22,16 @@ from importlib import resources
 from nicegui import ui
 
 from paper_boxing.common.client import BackendError, BackendUnreachable
+from paper_boxing.common.config import VERSION
 from paper_boxing.frontend import auth, backend
 
 # ParkviewLab brand (the handbook's docs/brand.md): the header carries the official horizontal logo
 # from the brand's own files, the white artwork on the brand's deep teal. The file @imports its
 # wordmark font from Google Fonts; that line is replaced at render time with the same face embedded
 # from the vendored woff2 as data, so nothing is fetched. The artwork itself is untouched.
+# Beside the logo, the label names the application and the running version, "paper-boxing v<version>",
+# the version being the one the package metadata gives (`paper_boxing.common.config`), so that a
+# person reads which version is running from any page, as an operator reads it from /health.
 TEAL_DEEP = "#004f52"
 TEAL = "#00C2C7"
 SAGE = "#90b095"
@@ -82,13 +86,16 @@ NAV: tuple[tuple[str, str], ...] = (
 
 @contextmanager
 def frame(title: str) -> Iterator[None]:
-    """The header with the navigation and the signed-in person, then a centred column for the page."""
+    """The header with the logo, the name and version, the navigation and the signed-in person, then a
+    centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
     ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
     with ui.header().classes("items-center justify-between px-6 py-1").style(f"background:{TEAL_DEEP}"):
         with ui.row().classes("items-center gap-8"):
             logo()
-            ui.label("paper-boxing").classes("text-white").style("opacity:.85; letter-spacing:.02em")
+            ui.label(f"paper-boxing v{VERSION}").classes("text-white").style(
+                "opacity:.85; letter-spacing:.02em"
+            ).mark("brand-name")
             for text, path in NAV:
                 ui.link(text, path).classes("text-white no-underline")
         with ui.row().classes("items-center gap-2"):
