@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The multi-session rules of docs/design.md section 5, checked structurally:
+"""The multi-session rules of docs/architecture.md, "The frontend", checked structurally:
 no UI element and no per-user value lives at module level in the frontend,
 the pages are registered by `install()` and built per client, the auth
 middleware only ever redirects page requests, and the return path after

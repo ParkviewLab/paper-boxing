@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+
+Designed HTML presentation of northstar.md (the canonical source: MD wins if
+they drift and this file is re-authored). Wording is faithful to northstar.md.
+Self-contained: no build, no network, brand tokens, responsive. The method is
+the handbook's docs/md-to-html.md; the tokens are its docs/brand.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="paper-boxing is the working space for the early design and specification of large new projects: the place where a project's documents live before its first release, and where anything private lives permanently.">
+<title>ParkviewLab · paper-boxing northstar</title>
+<style>
+/* ParkviewLab brand, see the handbook's docs/brand.md. Three brand colours
+   (teal / teal-deep / sage) carry identity; the Bauhaus accents are sparse:
+   blue marks the third intent, red marks the negations and one prohibition.
+   Michroma (SIL OFL 1.1) is embedded as base64 woff2 so the file is offline. */
+@font-face {
+  font-family:'Michroma'; font-style:normal; font-weight:400; font-display:swap;
+  src:url('data:font/woff2;base64,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') format('woff2');
+}
+
+:root{
+  --teal:#00C2C7; --teal-deep:#004f52; --sage:#90b095; --ink:#141414;
+  --red:#E2483D; --blue:#2547C8; --yellow:#F2B33D;
+  --paper:#f3eee2; --paper-2:#ece5d4; --card:#fbf8f1; --muted:#5d6258; --line:#d4cab5;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --display:'Michroma',var(--sans);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px;}
+a{color:var(--teal-deep);text-decoration-color:var(--teal);}
+a:hover{color:var(--red);}
+code{font-family:var(--mono);font-size:.92em;background:var(--paper-2);padding:.05em .35em;border-radius:3px;}
+
+header.site{border-bottom:3px solid var(--ink);padding:22px 0 18px;margin-bottom:40px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+header.site .mark{height:54px;width:54px;flex:none;}
+header.site .word{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:14px;color:var(--teal-deep);line-height:1.1;}
+header.site .word small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.22em;}
+
+.hero{margin:8px 0 30px;}
+.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.22em;color:var(--muted);margin:0 0 10px;}
+.hero h1{font-family:var(--display);font-size:34px;line-height:1.2;margin:0 0 16px;color:var(--teal-deep);text-transform:uppercase;letter-spacing:.02em;}
+.hero .rule{height:6px;width:150px;background:var(--teal);margin:0 0 22px;}
+.hero p.lede{font-size:19px;max-width:760px;margin:0;}
+.hero p.lede .leads{display:block;margin-top:10px;font-size:16px;color:var(--muted);}
+
+.section-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:54px 0 18px;font-weight:600;display:flex;align-items:center;gap:10px;}
+.section-label::before{content:"";width:12px;height:12px;background:var(--ac,var(--teal-deep));}
+.umbrella{max-width:760px;font-size:16.5px;margin:6px 0 18px;}
+.prose{max-width:760px;}
+.prose p{font-size:16.5px;margin:0 0 14px;}
+
+/* Intent grid: the three perceived at a glance, before any one is read */
+.intents{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:8px 0 8px;}
+.intent{position:relative;background:var(--card);border:2px solid var(--ink);padding:22px 22px 20px;overflow:hidden;}
+.intent::before{content:"";position:absolute;top:0;left:0;width:100%;height:8px;background:var(--ac);}
+.intent .num{font-family:var(--display);font-size:42px;color:var(--paper-2);line-height:1;}
+.intent h3{font-family:var(--display);font-size:14px;letter-spacing:.01em;margin:4px 0 8px;line-height:1.5;}
+.intent p{font-size:14px;color:var(--muted);margin:0;}
+.i1{--ac:var(--teal-deep)} .i2{--ac:var(--sage)} .i3{--ac:var(--blue)}
+
+/* Deep dives: each intent expanded, with the one figure its text supplies */
+.dive{margin:56px 0 0;}
+.dive h2{font-family:var(--display);font-size:16px;letter-spacing:.02em;margin:0 0 18px;display:flex;align-items:baseline;gap:14px;color:var(--ink);line-height:1.4;}
+.dive h2 .n{font-family:var(--display);font-size:34px;color:var(--ac,var(--teal-deep));line-height:1;}
+.d1{--ac:var(--teal-deep)} .d2{--ac:var(--sage)} .d3{--ac:var(--blue)}
+
+.figure{background:var(--card);border:1px solid var(--line);padding:14px 16px 10px;margin:0 0 22px;max-width:760px;}
+.figure.narrow{max-width:560px;}
+.figure svg,.panel svg{width:100%;height:auto;display:block;}
+.figure .cap{font-size:13px;color:var(--muted);margin:6px 0 0;font-style:italic;}
+
+/* Two meeting points, side by side */
+.contrast{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 22px;max-width:760px;}
+.panel{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--teal);padding:14px 16px 14px;}
+.panel .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--teal-deep);margin:0 0 8px;}
+.panel p{font-size:14.5px;color:var(--ink);margin:0;}
+
+svg .box{fill:var(--card);stroke:var(--ink);stroke-width:1.5;}
+svg .box.soft{fill:var(--paper-2);}
+svg .bar{fill:var(--paper-2);}
+svg .top{fill:var(--teal-deep);}
+svg .chip{fill:var(--teal);}
+svg .txt{font-family:var(--mono);font-size:9px;fill:var(--muted);letter-spacing:.08em;}
+svg .txt.ink{fill:var(--ink);}
+svg .txt.no{fill:var(--red);}
+svg .lead{stroke:var(--teal-deep);stroke-width:1.4;fill:none;}
+svg .lead.thin{stroke-width:1;}
+svg .node{fill:var(--card);stroke:var(--teal-deep);stroke-width:2;}
+svg .numeral{font-family:'Michroma',var(--sans);font-size:12px;fill:var(--teal-deep);}
+svg .person{fill:none;stroke:var(--ink);stroke-width:1.6;}
+svg .agent{fill:var(--teal);}
+svg .agent2{fill:var(--teal-deep);}
+
+/* Axioms read together, each with its faded numeral */
+.axioms{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:8px 0;}
+.axiom{position:relative;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);padding:16px 16px 14px;overflow:hidden;}
+.axiom .big{position:absolute;right:10px;top:-6px;font-family:var(--display);font-size:64px;color:var(--paper-2);line-height:1;pointer-events:none;}
+.axiom .k{font-family:var(--display);font-size:11px;color:var(--teal-deep);letter-spacing:.06em;position:relative;}
+.axiom h4{font-family:var(--display);font-size:13px;margin:6px 0 6px;letter-spacing:.01em;position:relative;}
+.axiom p{font-size:13.5px;color:var(--muted);margin:0;position:relative;}
+
+/* Guiding questions as a checklist */
+.questions{max-width:820px;list-style:none;padding:0;margin:8px 0;counter-reset:q;}
+.questions li{counter-increment:q;background:var(--card);border:1px solid var(--line);padding:13px 16px 13px 64px;position:relative;margin:0 0 10px;font-size:15.5px;}
+.questions li::before{content:"";position:absolute;left:16px;top:16px;width:13px;height:13px;border:1.5px solid var(--teal-deep);border-radius:2px;}
+.questions li::after{content:counter(q);position:absolute;left:38px;top:11px;font-family:var(--mono);font-size:12px;color:var(--teal-deep);letter-spacing:.06em;}
+
+/* What it is not: five, equal, one to a row */
+.nots{display:grid;gap:12px;margin:8px 0;}
+.not{background:var(--paper-2);border:2px solid var(--ink);padding:16px 18px;display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start;}
+.not h4{font-family:var(--display);font-size:12px;letter-spacing:.04em;margin:0;color:var(--red);text-transform:uppercase;line-height:1.6;}
+.not p{font-size:13.5px;color:var(--muted);margin:0;}
+
+footer.site{margin-top:64px;border-top:3px solid var(--ink);padding-top:20px;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.03em;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+
+@media (max-width:680px){
+  .intents,.axioms,.contrast{grid-template-columns:1fr;}
+  .not{grid-template-columns:1fr;gap:6px;}
+  .hero h1{font-size:26px;}
+  header.site{padding:18px 0;margin-bottom:30px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <svg class="mark" viewBox="60 115 170 170" role="img" aria-label="ParkviewLab" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(200,200)">
+        <rect x="-88.572067" y="39.569824" width="9" height="28" fill="#90b095"/>
+        <circle cx="-83" cy="10" r="30" fill="#90b095"/><circle cx="-111" cy="20" r="22" fill="#90b095"/>
+        <circle cx="-55" cy="18" r="21" fill="#90b095"/><circle cx="-119" cy="4" r="16" fill="#90b095"/>
+        <circle cx="-47" cy="6" r="15" fill="#90b095"/><circle cx="-99" cy="-14" r="24" fill="#90b095"/>
+        <circle cx="-71" cy="-22" r="20" fill="#90b095"/><circle cx="-103" cy="-32" r="16" fill="#90b095"/>
+        <circle cx="-79" cy="-38" r="15" fill="#90b095"/><circle cx="-59" cy="-14" r="13" fill="#90b095"/>
+        <rect x="-5.820663" y="39.498325" width="6" height="22" fill="#90b095"/>
+        <circle cx="-2" cy="26" r="17" fill="#90b095"/><circle cx="-19" cy="29" r="13" fill="#90b095"/>
+        <circle cx="14" cy="27" r="12" fill="#90b095"/><circle cx="-11" cy="12" r="13" fill="#90b095"/>
+        <circle cx="7" cy="13" r="14" fill="#90b095"/><circle cx="-4.2837896" cy="-2.7139649" r="11" fill="#90b095"/>
+        <circle cx="6" cy="-2.14414" r="7" fill="#90b095"/>
+        <g transform="matrix(0.84873049,0,0,0.84873049,-48.542203,6.0416091)">
+          <polyline points="0,-28 0,-36 0,-62" fill="none" stroke="#00C2C7" stroke-width="6" stroke-linecap="square"/>
+          <polyline points="24,-14 32,-22 53.7,-28" fill="none" stroke="#00C2C7" stroke-width="6" stroke-linecap="square"/>
+          <polyline points="-24,-14 -32,-22 -53.7,-28" fill="none" stroke="#00C2C7" stroke-width="6" stroke-linecap="square"/>
+          <polyline points="0,28 0,35 0,56" fill="none" stroke="#00C2C7" stroke-width="4.5" stroke-linecap="square"/>
+          <polyline points="24,14 30,20 46,28" fill="none" stroke="#00C2C7" stroke-width="4.5" stroke-linecap="square"/>
+          <polyline points="-24,14 -30,20 -46,28" fill="none" stroke="#00C2C7" stroke-width="4.5" stroke-linecap="square"/>
+          <circle cx="0" cy="-62" r="11" fill="#00C2C7"/><circle cx="0" cy="-62" r="5" fill="#004f52"/>
+          <circle cx="53.7" cy="-31" r="11" fill="#00C2C7"/><circle cx="53.7" cy="-31" r="5" fill="#004f52"/>
+          <circle cx="-53.7" cy="-31" r="11" fill="#00C2C7"/><circle cx="-53.7" cy="-31" r="5" fill="#004f52"/>
+          <circle cx="0" cy="56" r="9" fill="#00C2C7"/><circle cx="0" cy="56" r="4" fill="#004f52"/>
+          <circle cx="46" cy="28" r="9" fill="#00C2C7"/><circle cx="46" cy="28" r="4" fill="#004f52"/>
+          <circle cx="-46" cy="28" r="9" fill="#00C2C7"/><circle cx="-46" cy="28" r="4" fill="#004f52"/>
+          <polygon points="0,-28 24,-14 24,14 0,28 -24,14 -24,-14" fill="#00C2C7"/>
+          <polygon points="0,-23 20,-11.5 20,11.5 0,23 -20,11.5 -20,-11.5" fill="#004f52"/>
+        </g>
+      </g>
+    </svg>
+    <span class="word">ParkviewLab<small>paper-boxing</small></span>
+  </header>
+
+  <div class="hero">
+    <p class="eyebrow">northstar</p>
+    <h1>paper-boxing</h1>
+    <div class="rule"></div>
+    <p class="lede">This northstar is the canonical statement of paper-boxing's purpose. It is here to guide every design decision and feature proposal, and each is weighed against it. Where it and any other document disagree, this one is the authority and the other is the thing to fix; where it and the code disagree, the code is wrong.
+      <span class="leads">A change of intent is therefore made here first, in the same pull request as the code that follows it, so that no disagreement is ever left standing by accident.</span></p>
+  </div>
+
+  <div class="section-label">what it is</div>
+  <div class="prose">
+    <p>paper-boxing is the working space for the early design and specification of large new projects: the place where a project's documents live before its first release, and where anything private lives permanently. It is a small site manager for a home lab. A site is a folder of static files, served unchanged over plain HTTP on the private LAN at a stable address; a person manages sites and files in a web UI, an agent does the same through an MCP server, and one backend does the writing for both. Accounts are several and of equal standing, and an agent acts with a token that a person created for it. It runs as four containers: the backend, the frontend, the MCP server, and a stock nginx that serves the sites read-only.</p>
+  </div>
+
+  <div class="section-label">why it exists</div>
+  <div class="prose">
+    <p>Early design produces documents that change daily: designed HTML pages, visual explorations, specifications, often with scripts. They are made by people and by agents together, and they need a place that is private, on the LAN, updated at once, and writable by both. A wiki is the wrong shape for them, since it rewrites what it stores and cannot hold a designed page as designed; a repository's documentation site is the right shape only once the project ships releases, and it is public. Between the first sketch and the first release, and for everything that must stay private, these documents need a place of their own. paper-boxing is that place: it stores files and serves them, and does nothing else.</p>
+    <p>The same shape serves a second use. A repository's documentation site is published from <code>main</code> at a release, so before a project's first release there is no published site to read; the site build's output, uploaded as a site, is that site as it will be published, readable on the LAN. Nothing is added for this: the output is a folder of files like any other.</p>
+  </div>
+
+  <div class="section-label">intents</div>
+  <p class="umbrella">paper-boxing serves three complementary intents: facets of one purpose, presented as peers rather than as one primary and the rest secondary, and mutually reinforcing.</p>
+  <div class="intents">
+    <div class="intent i1"><div class="num">1</div><h3>Pages kept exactly as written</h3>
+      <p>What is uploaded is what is served, byte for byte, at an address that never changes. paper-boxing stores files and serves them; it renders, transforms and versions nothing, and the site server is a separate process that cannot write.</p></div>
+    <div class="intent i2"><div class="num">2</div><h3>Equally usable by a person and an agent, through one backend</h3>
+      <p>For sites and files, what a person can do in the UI an agent can do through the tools, with the same outcome, because the UI and the MCP server are two clients of one backend that holds every rule once. Accounts and tokens are a person's act: an agent holds what a person made for it, with the scope the person chose.</p></div>
+    <div class="intent i3"><div class="num">3</div><h3>Sized for a home lab, in Docker</h3>
+      <p>One compose stack on one host, four containers, fixed ports, one data volume, one version. The deployment is a private LAN over plain HTTP, stated plainly; the design spends its care on accidents, keeps the stock protections, and adds nothing for the public internet or for users who do not trust one another.</p></div>
+  </div>
+
+  <section class="dive d1">
+    <h2><span class="n">1</span>Pages kept exactly as written</h2>
+    <div class="figure"><svg viewBox="0 0 500 154" role="img" aria-label="what is uploaded is what is served, byte for byte, at one address; the backend writes the site's folder and nginx reads it and cannot write">
+      <text class="txt" x="250" y="13" text-anchor="middle">what is uploaded is what is served, byte for byte</text>
+      <path class="lead thin" d="M46,34 L46,25 L454,25 L454,34" stroke-dasharray="3 3"/>
+      <rect class="box" x="20" y="44" width="52" height="66"/>
+      <rect class="bar" x="28" y="56" width="32" height="4"/><rect class="bar" x="28" y="65" width="22" height="4"/><rect class="bar" x="28" y="74" width="36" height="4"/><rect class="bar" x="28" y="83" width="18" height="4"/><rect class="bar" x="28" y="92" width="28" height="4"/>
+      <text class="txt ink" x="46" y="127" text-anchor="middle">uploaded</text>
+      <line class="lead" x1="72" y1="77" x2="181" y2="77"/><polygon points="185,77 177,73 177,81" fill="var(--teal-deep)"/>
+      <text class="txt" x="128" y="68" text-anchor="middle">backend writes</text>
+      <rect class="box" x="185" y="44" width="130" height="66"/><rect class="top" x="185" y="44" width="130" height="7"/>
+      <text class="txt ink" x="250" y="75" text-anchor="middle" style="font-size:11px">/&lt;site&gt;/</text>
+      <text class="txt" x="250" y="93" text-anchor="middle">the site's folder</text>
+      <text class="txt" x="250" y="127" text-anchor="middle">renders, transforms and versions nothing</text>
+      <text class="txt" x="250" y="141" text-anchor="middle">at an address that never changes</text>
+      <line class="lead" x1="315" y1="77" x2="424" y2="77"/><polygon points="428,77 420,73 420,81" fill="var(--teal-deep)"/>
+      <text class="txt" x="371" y="68" text-anchor="middle">nginx reads</text>
+      <text class="txt no" x="371" y="93" text-anchor="middle">cannot write</text>
+      <rect class="box" x="428" y="44" width="52" height="66"/>
+      <rect class="bar" x="436" y="56" width="32" height="4"/><rect class="bar" x="436" y="65" width="22" height="4"/><rect class="bar" x="436" y="74" width="36" height="4"/><rect class="bar" x="436" y="83" width="18" height="4"/><rect class="bar" x="436" y="92" width="28" height="4"/>
+      <text class="txt ink" x="454" y="127" text-anchor="middle">served</text>
+    </svg></div>
+    <div class="prose">
+      <p>A site is a folder of files, and the site server is a stock nginx that serves that folder read-only. paper-boxing does not render, transform, template or version what it stores; it holds no history and runs nothing on the server side. A replaced file shows at once, and a site's address, <code>/&lt;site&gt;/</code> on the site server's port, is part of every link placed elsewhere and never changes once the site exists. This rules out any feature that would make the served page differ from the uploaded one, and it is why the site server is a separate process that cannot write.</p>
+      <p>The one page of content that paper-boxing does not store is nginx's own listing of a site or a folder that has no <code>index.html</code>: generated by the site server from the folder's contents, not by paper-boxing, so that a few hand-made pages are reachable before an index exists. The same listing at the server's root names every site.</p>
+    </div>
+  </section>
+
+  <section class="dive d2">
+    <h2><span class="n">2</span>Equally usable by a person and an agent, through one backend</h2>
+    <div class="figure"><svg viewBox="0 0 500 200" role="img" aria-label="a person through the UI and an agent through the MCP server reach one backend, which holds every rule once">
+      <circle class="person" cx="46" cy="44" r="11"/>
+      <path class="person" d="M24,92 C24,70 68,70 68,92"/>
+      <text class="txt" x="46" y="108" text-anchor="middle">person</text>
+      <polygon class="agent" points="46,122 66,134 66,158 46,170 26,158 26,134"/>
+      <polygon class="agent2" points="46,130 59,138 59,154 46,162 33,154 33,138"/>
+      <text class="txt" x="46" y="188" text-anchor="middle">agent</text>
+      <line class="lead" x1="74" y1="67" x2="108" y2="67"/><polygon points="112,67 104,63 104,71" fill="var(--teal-deep)"/>
+      <line class="lead" x1="74" y1="146" x2="108" y2="146"/><polygon points="112,146 104,142 104,150" fill="var(--teal-deep)"/>
+      <rect class="box" x="112" y="46" width="130" height="42"/>
+      <text class="txt ink" x="177" y="64" text-anchor="middle">the UI</text>
+      <text class="txt" x="177" y="78" text-anchor="middle" style="font-size:8px">no files, no database</text>
+      <rect class="box" x="112" y="125" width="130" height="42"/>
+      <text class="txt ink" x="177" y="143" text-anchor="middle">the MCP server</text>
+      <text class="txt" x="177" y="157" text-anchor="middle" style="font-size:8px">no token store</text>
+      <line class="lead" x1="242" y1="67" x2="284" y2="84"/><polygon points="288,86 279.1,86.6 282.1,79.2" fill="var(--teal-deep)"/>
+      <line class="lead" x1="242" y1="146" x2="284" y2="130"/><polygon points="288,128 282.1,134.6 279.1,127.2" fill="var(--teal-deep)"/>
+      <rect class="box" x="288" y="30" width="204" height="156"/><rect class="top" x="288" y="30" width="204" height="7"/>
+      <text class="txt ink" x="390" y="56" text-anchor="middle" style="font-size:11px">the backend</text>
+      <text class="txt" x="390" y="70" text-anchor="middle">the only writer</text>
+      <text class="txt" x="390" y="82" text-anchor="middle">every rule, once</text>
+      <rect class="chip" x="304" y="100" width="8" height="8"/><text class="txt ink" x="320" y="107">path containment</text>
+      <rect class="chip" x="304" y="120" width="8" height="8"/><text class="txt ink" x="320" y="127">overwrite and delete intent</text>
+      <rect class="chip" x="304" y="140" width="8" height="8"/><text class="txt ink" x="320" y="147">token scopes</text>
+      <rect class="chip" x="304" y="160" width="8" height="8"/><text class="txt ink" x="320" y="167">who may manage</text><text class="txt ink" x="320" y="180">accounts and tokens</text>
+    </svg><p class="cap">Neither client can do more than the backend allows.</p></div>
+    <div class="prose">
+      <p>The backend is the only writer of files and of the database, and the one implementation of every rule about sites, files, accounts and scopes: path containment, overwrite and delete intent, token scopes, and who may manage accounts and tokens. The frontend holds no files and no database of its own; what it keeps is disposable: the per-browser session on its own disk, and per-tab state in memory. The MCP server holds no token store and keeps three safeguards of its own, taken from the MCP specification: every request's token is confirmed with the backend before a tool runs, only a token the backend issued is accepted, and only a token of the agent type is accepted, so a person's session token is refused. What a person can do with sites and files in the UI, an agent can do through the tools, and neither can do more than the backend allows.</p>
+      <p>The boundary is a principle, not a gap. Accounts and tokens are a person's act: accounts are several and of equal standing, any of them creates and revokes agent tokens, and an agent holds what a person made for it, with the scope the person chose (read only, read and write, or remove and destructive), which the backend enforces on every call whichever client made it. File operations are single-file, because an empty folder has no meaning in a static site and a site of designed pages is a handful of files. A tool call carries a file up to a cap, since the file travels inside a message, and a larger file goes to the backend's REST API with the same token, which is why the backend's port is published.</p>
+    </div>
+  </section>
+
+  <section class="dive d3">
+    <h2><span class="n">3</span>Sized for a home lab, in Docker</h2>
+    <div class="figure"><svg viewBox="0 0 480 198" role="img" aria-label="one host, one compose stack, four containers and one data volume, on a private LAN over plain HTTP">
+      <rect x="14" y="26" width="452" height="150" fill="none" stroke="var(--teal-deep)" stroke-width="1.2" stroke-dasharray="5 4"/>
+      <text class="txt" x="20" y="18">one host · one compose stack</text>
+      <text class="txt" x="460" y="18" text-anchor="end">fixed ports · one version</text>
+      <rect class="box" x="26" y="46" width="112" height="42"/><rect class="top" x="26" y="46" width="112" height="6"/>
+      <text class="txt ink" x="82" y="67" text-anchor="middle">frontend</text>
+      <text class="txt" x="82" y="80" text-anchor="middle">the web UI</text>
+      <rect class="box" x="184" y="46" width="112" height="42"/><rect class="top" x="184" y="46" width="112" height="6"/>
+      <text class="txt ink" x="240" y="67" text-anchor="middle">backend</text>
+      <text class="txt" x="240" y="80" text-anchor="middle">the only writer</text>
+      <rect class="box" x="342" y="46" width="112" height="42"/><rect class="top" x="342" y="46" width="112" height="6"/>
+      <text class="txt ink" x="398" y="67" text-anchor="middle">MCP server</text>
+      <text class="txt" x="398" y="80" text-anchor="middle">for agents</text>
+      <line class="lead" x1="138" y1="67" x2="180" y2="67"/><polygon points="184,67 176,63 176,71" fill="var(--teal-deep)"/>
+      <line class="lead" x1="342" y1="67" x2="300" y2="67"/><polygon points="296,67 304,63 304,71" fill="var(--teal-deep)"/>
+      <rect class="box soft" x="184" y="124" width="112" height="38" rx="6"/>
+      <text class="txt ink" x="240" y="147" text-anchor="middle">one data volume</text>
+      <line class="lead" x1="240" y1="88" x2="240" y2="120"/><polygon points="240,124 236,116 244,116" fill="var(--teal-deep)"/>
+      <text class="txt" x="248" y="110">writes</text>
+      <rect class="box" x="342" y="122" width="112" height="42"/>
+      <text class="txt ink" x="398" y="143" text-anchor="middle">nginx</text>
+      <text class="txt" x="398" y="156" text-anchor="middle" style="font-size:8px">sites, read-only</text>
+      <line class="lead" x1="296" y1="143" x2="338" y2="143"/><polygon points="342,143 334,139 334,147" fill="var(--teal-deep)"/>
+      <text class="txt" x="319" y="136" text-anchor="middle">reads</text>
+      <text class="txt" x="20" y="192">a private LAN, over plain HTTP</text>
+    </svg><p class="cap">The threat model is stated rather than hidden.</p></div>
+    <div class="prose">
+      <p>Everything runs in one compose stack on one host, on fixed ports, with one data volume and one version for the three images, which are published as images and nothing else: no package, because it is designed to run in Docker. The threat model is stated rather than hidden: a private LAN over plain HTTP, where tokens travel unencrypted and there is no lockout, because the operator controls the network. The site server has no authentication of its own: anyone who reaches its port reads every site, and its root lists them all. The design spends its care on accidents, since they are what happens on a private LAN: a path that escapes a site, a file overwritten by mistake, a site deleted by a slip. It keeps the stock protections that cost nothing to keep, passwords hashed and tokens stored as digests, the MCP transport's Host and Origin allowlist, and adds nothing for the public internet or for mutually untrusted users, because it is not for them.</p>
+    </div>
+  </section>
+
+  <section class="dive" style="--ac:var(--red)">
+    <h2>How the intents reinforce each other</h2>
+    <div class="figure narrow"><svg viewBox="0 0 480 240" role="img" aria-label="the three intents in a ring: the second makes the first possible, the third the second, and the first the third">
+      <line class="lead" x1="384.0" y1="180.8" x2="255.9" y2="59.2"/><polygon points="255.9,59.2 264.5,61.8 258.9,67.6" fill="var(--teal-deep)"/>
+      <line class="lead" x1="102" y1="196" x2="378" y2="196"/><polygon points="378,196 370,192 370,200" fill="var(--teal-deep)"/>
+      <line class="lead" x1="224.1" y1="59.2" x2="95.9" y2="180.8"/><polygon points="95.9,180.8 104.5,178.2 98.9,172.4" fill="var(--teal-deep)"/>
+      <circle class="node" cx="240" cy="44" r="18"/><text class="numeral" x="240" y="48" text-anchor="middle">1</text>
+      <text class="txt ink" x="240" y="14" text-anchor="middle">pages kept exactly as written</text>
+      <circle class="node" cx="400" cy="196" r="18"/><text class="numeral" x="400" y="200" text-anchor="middle">2</text>
+      <text class="txt ink" x="400" y="230" text-anchor="middle">two clients, one backend</text>
+      <circle class="node" cx="80" cy="196" r="18"/><text class="numeral" x="80" y="200" text-anchor="middle">3</text>
+      <text class="txt ink" x="80" y="230" text-anchor="middle">sized for a home lab</text>
+      <text class="txt" x="332" y="108">a single writer</text><text class="txt" x="332" y="120">with fixed rules</text>
+      <text class="txt" x="148" y="108" text-anchor="end">few moving</text><text class="txt" x="148" y="120" text-anchor="end">parts</text>
+      <text class="txt" x="240" y="152" text-anchor="middle">a private LAN with a few people</text><text class="txt" x="240" y="164" text-anchor="middle">who trust one another</text>
+      <text class="txt" x="240" y="216" text-anchor="middle">makes possible</text>
+    </svg></div>
+    <div class="prose">
+      <p>The first intent is possible because of the second: a single writer with fixed rules is what lets the site server be a read-only stock nginx, so nothing can alter a page after it is written. The second is possible because of the third: a private LAN with a few people who trust one another is what makes a token with a scope, confirmed on every call, an adequate authentication model, without the apparatus a public service would need. And the third holds because of the first: a service that only stores and serves files has few moving parts, which is what keeps it small enough for a home lab. Where two intents meet, the design has chosen the plain option each time.</p>
+    </div>
+    <div class="contrast">
+      <div class="panel"><p class="lbl">Where the first meets the third</p><p>nginx rather than serving from the backend, one more container for a server that cannot write; and nginx's own listing rather than an index page of paper-boxing's making, a folder without an index made readable for one directive and no code, with paper-boxing still rendering nothing.</p></div>
+      <div class="panel"><p class="lbl">Where the second meets the third</p><p>single-file operations rather than batches, a client-side loop rather than a route that swaps a site in one step.</p></div>
+    </div>
+  </section>
+
+  <div class="section-label" style="--ac:var(--sage)">axioms</div>
+  <p class="umbrella">The same axioms support all the intents, from different angles.</p>
+  <div class="axioms">
+    <div class="axiom"><span class="big">1</span><div class="k">axiom 1</div><h4>One writer</h4><p>Only the backend touches the files and the database, and every rule about sites, files, accounts and scopes lives there once. Every other component is its client.</p></div>
+    <div class="axiom"><span class="big">2</span><div class="k">axiom 2</div><h4>Serve what was stored</h4><p>No transformation between upload and response, no history, nothing executed on the server side. If a page as served differs from the page as uploaded, that is a defect; the one generated page of content is the site server's listing of a folder without an <code>index.html</code>.</p></div>
+    <div class="axiom"><span class="big">3</span><div class="k">axiom 3</div><h4>Addresses are permanent</h4><p>A site's slug and the site server's port never change; a link placed elsewhere keeps working for as long as the site exists.</p></div>
+    <div class="axiom"><span class="big">4</span><div class="k">axiom 4</div><h4>Intent before destruction</h4><p>Overwriting needs <code>overwrite</code>, deleting a non-empty folder needs <code>recursive</code>, deleting a site needs its slug repeated as confirmation. A write is atomic, so a failure leaves the old file whole.</p></div>
+    <div class="axiom"><span class="big">5</span><div class="k">axiom 5</div><h4>Say what the threat model is</h4><p>Plain HTTP on a private LAN, with a site server that anyone on it can read, is the accepted deployment, and every document says so plainly rather than implying a security that is not there.</p></div>
+    <div class="axiom"><span class="big">6</span><div class="k">axiom 6</div><h4>Prefer the stock part</h4><p>A stock nginx, a stock compose stack, the handbook's shapes for the package and the MCP server; paper-boxing adds code only where no stock part does the job.</p></div>
+  </div>
+
+  <div class="section-label" style="--ac:var(--teal-deep)">guiding questions</div>
+  <p class="umbrella">When making a decision, these are the questions to keep answering:</p>
+  <ul class="questions">
+    <li>Does the served page remain byte-identical to the uploaded file, at the same address?</li>
+    <li>Is the rule enforced in the backend, once, for the UI and the MCP server alike?</li>
+    <li>For sites and files, can a person do it in the UI and an agent through a tool, with the same outcome; and where they differ, is the difference a person's act?</li>
+    <li>Does it fit one host, one compose stack, a private LAN?</li>
+    <li>Is the safeguard against an accident, and is it stated plainly that it is not a safeguard against a stranger?</li>
+  </ul>
+
+  <div class="section-label" style="--ac:var(--red)">what paper-boxing is not</div>
+  <div class="nots">
+    <div class="not"><h4>Not a wiki</h4><p>The wiki of the home lab this was built for (BookStack) stays the wiki; its pages link to the sites paper-boxing serves. paper-boxing holds files, not articles.</p></div>
+    <div class="not"><h4>Not a CMS or a build system</h4><p>It renders nothing, builds nothing and runs nothing on the server side; the one generated page of content is nginx's listing of a folder without an <code>index.html</code>.</p></div>
+    <div class="not"><h4>Not a public host</h4><p>It is designed for a private LAN over plain HTTP, not for the internet or for users who do not trust one another.</p></div>
+    <div class="not"><h4>Not a replacement for a released project's GitHub Pages site</h4><p>A released project's documentation is published from its repository's Pages site; paper-boxing previews that site before the release, and keeps what stays private.</p></div>
+    <div class="not"><h4>Not a version store</h4><p>It keeps no history; a repository does that.</p></div>
+  </div>
+
+  <footer class="site">
+    <span>© 2026 Gary Frattarola · ParkviewLab</span>
+    <span>MIT OR Apache-2.0 · canonical source: docs/northstar.md</span>
+  </footer>
+
+</div>
+</body>
+</html>

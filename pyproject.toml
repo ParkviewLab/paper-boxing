@@ -4,7 +4,7 @@
 
 [project]
 name = "paper-boxing"
-version = "0.1.0"
+version = "0.1.1.dev0"
 description = "A small local site manager for a home lab: static sites on the LAN, a web UI for people, an MCP server for agents."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -12,7 +12,8 @@ license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 authors = [{ name = "Gary Frattarola", email = "garyf@parkviewlab.ai" }]
 # Core: what `paper_boxing.common` needs (the schemas and the REST client).
-# Each image installs its own extra on top; see docs/design.md section 3.
+# Each image installs its own extra on top; see docs/architecture.md, "The package
+# and the images".
 dependencies = [
     "pydantic",
     "httpx",

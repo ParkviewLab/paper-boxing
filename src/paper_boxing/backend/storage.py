@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 """The served tree, `sites/<slug>/...`, and the staging area beside it
-(docs/design.md section 4).
+(docs/architecture.md, "Storage").
 
 Path safety. A path arrives already validated by the contract's rules
 (`paper_boxing.common.naming`); here every existing component below the

@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 """SQLite storage of users, sessions, agent tokens and site metadata
-(docs/design.md section 4): `paper-boxing.sqlite3` in the data directory.
+(docs/architecture.md, "Authentication" and "Storage"): `paper-boxing.sqlite3`
+in the data directory.
 
 The standard library's `sqlite3` in WAL mode, one connection, every access
 under a re-entrant lock so the connection can be shared between the event

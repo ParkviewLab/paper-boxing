@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The pages (docs/design.md section 5), one module each, and their route table.
+"""The pages (docs/architecture.md, "The frontend"), one module each, and their route table.
 
 Each module exposes one page builder, and `register()` binds it to its path
 with `ui.page`, so a page is built afresh inside that function for every
