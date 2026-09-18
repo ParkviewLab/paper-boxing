@@ -16,6 +16,20 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-09-17
+
+### Highlights
+
+The frontend header now shows the running version alongside the project name, sourced from the same package metadata that `/health` reports. Documentation and architecture notes were updated to describe the header and record the design decision behind it.
+
+### Docs
+
+- V0.2.0 [skip ci] (34f1ee4)
+
+### Features
+
+- Show the running version in the frontend header (#14) (6ad40ae)
+
 ## [v0.2.0] - 2026-09-17
 
 ### Highlights
