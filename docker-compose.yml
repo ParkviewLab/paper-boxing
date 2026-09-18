@@ -127,10 +127,34 @@ configs:
           autoindex_localtime on;
           absolute_redirect off;
           include /etc/nginx/mime.types;
+          # Source code, configuration, data and plain-text files are served as text
+          # the browser displays, not as application/octet-stream, which it downloads;
+          # a file with no extension or an unknown one is text too (default_type), so
+          # README, LICENSE, Makefile and Dockerfile display. The bytes are unchanged;
+          # only the Content-Type is. See docs/architecture.md, "The site server".
+          # The charset is written into the type rather than set with `charset`, whose
+          # `charset_types` always includes text/html and would give every page, the
+          # listing and the 404 page a charset header; only the text type carries one.
+          # `txt`, `ts`, `pl` and `pm` override stock entries on purpose (nginx warns at start).
           types {
-              application/javascript mjs;
+              application/javascript mjs cjs;
               application/manifest+json webmanifest;
+              "text/plain; charset=utf-8" py pyi pyw pyx pxd;
+              "text/plain; charset=utf-8" ts tsx mts cts jsx;
+              "text/plain; charset=utf-8" rs;
+              "text/plain; charset=utf-8" c h cc cpp cxx hh hpp hxx inl ipp tpp;
+              "text/plain; charset=utf-8" swift m mm;
+              "text/plain; charset=utf-8" go java kt kts cs rb lua pl pm php sql r jl zig dart scala hs;
+              "text/plain; charset=utf-8" sh bash zsh fish ps1 cmake mk mak gradle bzl nix;
+              "text/plain; charset=utf-8" yaml yml toml ini cfg conf env properties json5 jsonc jsonl ndjson csv tsv;
+              "text/plain; charset=utf-8" lock editorconfig gitignore gitattributes dockerignore;
+              "text/plain; charset=utf-8" txt md markdown rst adoc org tex bib log diff patch;
+              "text/plain; charset=utf-8" proto graphql gql thrift avsc fbs capnp idl x;
+              "text/plain; charset=utf-8" dot gv mmd puml d2;
+              "text/plain; charset=utf-8" xdr xsd dtd rng rnc sch wsdl xslt;
+              "text/plain; charset=utf-8" urdf xacro srdf sdf launch msg srv action;
           }
+          default_type "text/plain; charset=utf-8";
           add_header Cache-Control "no-cache";
           location / {
               try_files $$uri $$uri/ =404;
