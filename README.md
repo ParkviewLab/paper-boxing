@@ -54,7 +54,7 @@ Frontend, port 35840: the pages `/login`, `/` (sites), `/sites/<slug>` (with `?p
 
 MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405), `/sse` (the old HTTP+SSE path, which answers 405 naming `/mcp`; [`docs/api.md`](docs/api.md#mcp-tools)), `GET /health`, `GET /admin/version`, `GET /docs`, `GET /openapi.json`.
 
-Site server, port 35841: `GET /<site>/...`, the files as uploaded. A folder with no `index.html` shows nginx's listing.
+Site server, port 35841: `GET /<site>/...`, the files as uploaded. A folder with no `index.html` shows nginx's listing. Source code, configuration, data and plain-text files, and a file with no extension, are served as `text/plain` so the browser displays them rather than downloading them; an extension in no table keeps nginx's stock `application/octet-stream`, so an archive or a font downloads as before. The groups are named in [`docs/architecture.md`](docs/architecture.md#the-site-server), the compose file's `types` block is the list, and `tests/_site_server_types.py` is the check on it.
 
 `/health` returns `{ok, version, uptime_seconds}` on all three services.
 
