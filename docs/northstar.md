@@ -18,7 +18,7 @@ Early design produces documents that change daily: designed HTML pages, visual e
 
 The same shape serves a second use. A repository's documentation site is published from `main` at a release, so before a project's first release there is no published site to read; the site build's output, uploaded as a site, is that site as it will be published, readable on the LAN. Nothing is added for this: the output is a folder of files like any other.
 
-The same shape serves a third use: a page that reports the state of running systems rather than a project's design is stored and served exactly as a hand-made page is, regenerated elsewhere and uploaded afresh whenever that state changes.
+The same shape serves a third use: a page reporting the state of running systems, generated on another machine and uploaded afresh whenever that state changes, is stored and served exactly as a hand-made page is.
 
 ## Intents
 
