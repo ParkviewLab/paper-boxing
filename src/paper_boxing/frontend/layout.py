@@ -34,11 +34,12 @@ from paper_boxing.frontend import auth, backend
 # the version being the one the package metadata gives (`paper_boxing.common.config`), so that a
 # person reads which version is running from any page, as an operator reads it from /health. The
 # label is set in Michroma, the brand's wordmark face: the name at 21 px and the version at 12 px,
-# sitting on the name's baseline, separated by a real space character, so that the label's text reads
-# "paper-boxing v<version>" to a test and a screen reader, plus a gap of .5em; the sizes, the baseline
-# and the gap were chosen against a live preview. The face reaches the page once, as a @font-face in
-# the head built from the same vendored woff2 and embedded as data, so the label, like the logo,
-# fetches nothing. The logo and the label are flex items that cannot shrink (`shrink-0`), so that when
+# sitting on the name's baseline and separated by a gap of .5em, with a real space character between
+# them in the text so that the label's text content reads "paper-boxing v<version>"; the label is a
+# flex row, so the space is not rendered and the gap is the only visible separation. The sizes, the
+# baseline and the gap were chosen against a live preview. The label's face is one @font-face in the
+# head, built by _michroma_face() from the same vendored woff2 as the logo's own declaration and
+# embedded as data, so the label, like the logo, fetches nothing. The logo and the label are flex items that cannot shrink (`shrink-0`), so that when
 # the header is narrower than its contents the row wraps, as it did before, and neither is narrowed:
 # the logo renders at its full height and natural width at every width.
 TEAL_DEEP = "#004f52"
