@@ -13,6 +13,7 @@ element and no per-user value is created at import time.
 from __future__ import annotations
 
 import base64
+import html
 import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
@@ -31,7 +32,16 @@ from paper_boxing.frontend import auth, backend
 # from the vendored woff2 as data, so nothing is fetched. The artwork itself is untouched.
 # Beside the logo, the label names the application and the running version, "paper-boxing v<version>",
 # the version being the one the package metadata gives (`paper_boxing.common.config`), so that a
-# person reads which version is running from any page, as an operator reads it from /health.
+# person reads which version is running from any page, as an operator reads it from /health. The
+# label is set in Michroma, the brand's wordmark face: the name at 21 px and the version at 12 px,
+# sitting on the name's baseline and separated by a gap of .5em, with a real space character between
+# them in the text so that the label's text content reads "paper-boxing v<version>"; the label is a
+# flex row, so the space is not rendered and the gap is the only visible separation. The sizes, the
+# baseline and the gap were chosen against a live preview. The label's face is one @font-face in the
+# head, built by _michroma_face() from the same vendored woff2 as the logo's own declaration and
+# embedded as data, so the label, like the logo, fetches nothing. The logo and the label are flex items that cannot shrink (`shrink-0`), so that when
+# the header is narrower than its contents the row wraps, as it did before, and neither is narrowed:
+# the logo renders at its full height and natural width at every width.
 TEAL_DEEP = "#004f52"
 TEAL = "#00C2C7"
 SAGE = "#90b095"
@@ -45,6 +55,33 @@ def _michroma_face() -> str:
     return (
         "@font-face{font-family:'Michroma';font-style:normal;font-weight:400;"
         f"src:url('data:font/woff2;base64,{font}') format('woff2');}}"
+    )
+
+
+def michroma_style() -> str:
+    """The `<style>` for the page head that supplies Michroma to the page's own text, the header label."""
+    return f"<style>{_michroma_face()}</style>"
+
+
+NAME_PX = 21
+VERSION_PX = 12
+BRAND_LABEL_STYLE = "display:flex; align-items:baseline; gap:.5em; opacity:.85"
+_BRAND_PART_STYLE = "font-family:'Michroma',sans-serif; font-size:{size}px; letter-spacing:.02em"
+
+
+def brand_label_html() -> str:
+    """The header label's markup: the name at `NAME_PX` and the version at `VERSION_PX`, both in Michroma,
+    with a real space between them so that the element's text reads "paper-boxing v<version>"."""
+    return (
+        f'<span style="{_BRAND_PART_STYLE.format(size=NAME_PX)}">paper-boxing</span> '
+        f'<span style="{_BRAND_PART_STYLE.format(size=VERSION_PX)}">v{html.escape(VERSION)}</span>'
+    )
+
+
+def brand_label() -> None:
+    """The name and the running version beside the logo, the version on the name's baseline."""
+    ui.html(brand_label_html(), sanitize=False).classes("text-white shrink-0").style(BRAND_LABEL_STYLE).mark(
+        "brand-name"
     )
 
 
@@ -72,8 +109,8 @@ def logo_svg(height_px: int = 60, *, variant: str = "white") -> str:
 
 def logo() -> None:
     """The horizontal logo, linking to the sites page."""
-    with ui.link(target="/").classes("no-underline flex"):
-        ui.html(logo_svg(), sanitize=False).classes("flex").mark("brand-logo")
+    with ui.link(target="/").classes("no-underline flex shrink-0"):
+        ui.html(logo_svg(), sanitize=False).classes("flex shrink-0").mark("brand-logo")
 
 
 NAV: tuple[tuple[str, str], ...] = (
@@ -90,12 +127,11 @@ def frame(title: str) -> Iterator[None]:
     centred column for the page."""
     ui.page_title(f"{title} · paper-boxing")
     ui.colors(primary=TEAL_DEEP, secondary=SAGE, accent=TEAL)
+    ui.add_head_html(michroma_style())
     with ui.header().classes("items-center justify-between px-6 py-1").style(f"background:{TEAL_DEEP}"):
         with ui.row().classes("items-center gap-8"):
             logo()
-            ui.label(f"paper-boxing v{VERSION}").classes("text-white").style(
-                "opacity:.85; letter-spacing:.02em"
-            ).mark("brand-name")
+            brand_label()
             for text, path in NAV:
                 ui.link(text, path).classes("text-white no-underline")
         with ui.row().classes("items-center gap-2"):
