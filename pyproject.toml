@@ -4,7 +4,7 @@
 
 [project]
 name = "paper-boxing"
-version = "0.2.1.dev0"
+version = "0.3.0"
 description = "A small local site manager for a home lab: static sites on the LAN, a web UI for people, an MCP server for agents."
 readme = "README.md"
 requires-python = ">=3.13"
