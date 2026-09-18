@@ -2,21 +2,25 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The Content-Type the site server answers for each file extension: one table
-behind two checks. `tests/test_site_server_config.py` parses the compose
-file's inline nginx configuration and holds its `types` block to this table;
-`tests/integration/test_sites_types.py` uploads a file of every extension
-here and fetches it through the real nginx, which is what proves the
-behaviour.
+"""The Content-Type the site server answers for each file extension. The
+source is the `types` block of the compose file's inline nginx
+configuration, which is what runs; this table is the check on it, written
+out by group as the decision lists the extensions.
+`tests/test_site_server_config.py` parses the block and holds it to this
+table; `tests/integration/test_sites_types.py` uploads a file of every
+extension here and fetches it through the real nginx, which is what proves
+the behaviour.
 
 The rule (docs/architecture.md, "The site server"): source code,
 configuration, data and plain-text files are served as `text/plain;
 charset=utf-8`, so the browser displays them; a file with no extension, or
-with an extension in no table, is served so too (`default_type`); the charset
-is written into the type rather than set with nginx's `charset` directive,
-whose `charset_types` always includes `text/html`, so no page, style sheet or
-script gains a charset header that could override its own declaration;
-everything else the stock `mime.types` covers keeps its type.
+with an extension in no table, is served so too (`default_type`); `map`,
+which the stock table lacks, is given the stock default explicitly so that a
+source map is served as before; the charset is written into the type rather
+than set with nginx's `charset` directive, whose `charset_types` always
+includes `text/html`, so no page, style sheet or script gains a charset
+header that could override its own declaration; everything else the stock
+`mime.types` covers keeps its type.
 """
 
 from __future__ import annotations
@@ -108,6 +112,11 @@ DOT_FILE_EXTENSIONS: tuple[str, ...] = ("env", "editorconfig", "gitignore", "git
 ADDED_JAVASCRIPT: tuple[str, ...] = ("mjs", "cjs")
 ADDED_MANIFEST: dict[str, str] = {"webmanifest": "application/manifest+json"}
 
+# An extension the stock table lacks that the block pins to the stock default on purpose, so
+# that it does not fall to `default_type`: a source map is served exactly as it was before the
+# text types were added (the decision lists `map` among the types to stay unchanged).
+KEPT_STOCK_DEFAULT: dict[str, str] = {"map": "application/octet-stream"}
+
 # The one text type, with its charset in the type itself: the exact Content-Type header.
 CHARSET = "utf-8"
 TEXT_TYPE = f"text/plain; charset={CHARSET}"
@@ -117,6 +126,7 @@ TEXT_TYPE = f"text/plain; charset={CHARSET}"
 ADDED_TYPES: dict[str, str] = {
     **dict.fromkeys(ADDED_JAVASCRIPT, "application/javascript"),
     **ADDED_MANIFEST,
+    **KEPT_STOCK_DEFAULT,
     **dict.fromkeys(TEXT_PLAIN_EXTENSIONS, TEXT_TYPE),
 }
 
@@ -163,9 +173,11 @@ STOCK_UNCHANGED: dict[str, str] = {
 }
 
 # Extensions in no table, stock or added, that a site may hold: served with the default type.
-# `map` (a source map) is not in the stock table; a browser's devtools parse it whatever
-# the type says.
-NO_TABLE_EXTENSIONS: tuple[str, ...] = ("map", "unknownext")
+# The stock table has no `ttf` or `otf` (it has `woff` and `woff2`), so those fonts serve as
+# text; a browser loads a font whatever the type says. The same holds for every other
+# extension the stock table lacks (`gz`, `tar`, `wav`, `sqlite`, `pyc`), which is the accepted
+# cost the documents name.
+NO_TABLE_EXTENSIONS: tuple[str, ...] = ("ttf", "otf", "unknownext")
 
 # Names with no extension at all: served with the default type, so they display.
 EXTENSIONLESS_NAMES: tuple[str, ...] = ("README", "LICENSE", "Makefile", "Dockerfile", "bin/deploy")

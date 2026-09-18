@@ -5,8 +5,9 @@
 """What the site server answers as Content-Type, proven through the real
 nginx: one site holding a file of every extension in
 `tests/_site_server_types.py` (each text extension, names with no extension,
-extensions in no table, the two script types, the manifest, and a sample of
-the stock page, data, image, font and binary types), each fetched through
+extensions in no table, the source map pinned to the stock default, the two
+script types, the manifest, and a sample of the stock page, data, image, font
+and binary types), each fetched through
 nginx byte for byte with the exact Content-Type header: `text/plain;
 charset=utf-8` for text, the bare type for everything else. Then the parts
 that must not change: the listing of a folder without an index and the
@@ -30,6 +31,7 @@ from tests._site_server_types import (
     ADDED_MANIFEST,
     DOT_FILE_EXTENSIONS,
     EXTENSIONLESS_NAMES,
+    KEPT_STOCK_DEFAULT,
     NO_TABLE_EXTENSIONS,
     STOCK_UNCHANGED,
     TEXT_PLAIN_EXTENSIONS,
@@ -66,6 +68,10 @@ def type_tree() -> tuple[TreeFile, ...]:
         files.append(TreeFile(name, _text(name), "text/plain"))
     for ext in NO_TABLE_EXTENSIONS:
         files.append(TreeFile(f"other/sample.{ext}", _text(ext), "text/plain"))
+    for ext, media_type in KEPT_STOCK_DEFAULT.items():
+        files.append(
+            TreeFile(f"other/bundle.js.{ext}", b'{"version": 3, "sources": [], "mappings": ""}\n', media_type)
+        )
     for ext in ADDED_JAVASCRIPT:
         files.append(TreeFile(f"js/module.{ext}", b"export const answer = 42;\n", "application/javascript"))
     for ext, media_type in ADDED_MANIFEST.items():
@@ -117,7 +123,7 @@ def test_the_site_holds_every_file_of_the_table(admin: Rest, types_site: Deploye
 
 
 def test_the_listing_and_the_error_page_keep_their_type_without_a_charset(types_site: Deployed) -> None:
-    """`charset_types` is `text/plain` alone: nginx's own pages, which are HTML, gain no charset parameter."""
+    """The charset lives in the text type alone, so nginx's own pages (the listing and the 404 page), which are HTML, gain no charset parameter."""
     listing = fetch(types_site.slug, "text/")
     assert listing.status_code == 200
     assert listing.headers["content-type"] == "text/html"

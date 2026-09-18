@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-"""The compose file's inline nginx configuration, read as text and held to
+"""The compose file's inline nginx configuration, the source of what the site
+server answers, read as text and held to the check in
 `tests/_site_server_types.py`: the `types` block maps exactly the table's
 extensions, the default type is the text type, the charset is written into
 the text type and no `charset` directive is set (its `charset_types` always
@@ -23,6 +24,8 @@ from tests._site_server_types import (
     ADDED_TYPES,
     CHARSET,
     DEFAULT_TYPE,
+    KEPT_STOCK_DEFAULT,
+    NO_TABLE_EXTENSIONS,
     STOCK_OVERRIDDEN,
     STOCK_UNCHANGED,
     TEXT_PLAIN_EXTENSIONS,
@@ -108,3 +111,6 @@ def test_the_table_is_consistent_with_itself() -> None:
     assert len(TEXT_PLAIN_EXTENSIONS) == len(set(TEXT_PLAIN_EXTENSIONS))
     assert set(ADDED_TYPES).isdisjoint(STOCK_UNCHANGED)
     assert set(STOCK_OVERRIDDEN) <= set(TEXT_PLAIN_EXTENSIONS)
+    assert set(NO_TABLE_EXTENSIONS).isdisjoint(ADDED_TYPES)
+    assert set(NO_TABLE_EXTENSIONS).isdisjoint(STOCK_UNCHANGED)
+    assert KEPT_STOCK_DEFAULT == {"map": "application/octet-stream"}

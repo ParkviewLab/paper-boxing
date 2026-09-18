@@ -127,18 +127,17 @@ configs:
           autoindex_localtime on;
           absolute_redirect off;
           include /etc/nginx/mime.types;
-          # Source code, configuration, data and plain-text files are served as text
-          # the browser displays, not as application/octet-stream, which it downloads;
-          # a file with no extension or an unknown one is text too (default_type), so
-          # README, LICENSE, Makefile and Dockerfile display. The bytes are unchanged;
-          # only the Content-Type is. See docs/architecture.md, "The site server".
-          # The charset is written into the type rather than set with `charset`, whose
-          # `charset_types` always includes text/html and would give every page, the
-          # listing and the 404 page a charset header; only the text type carries one.
-          # `txt`, `ts`, `pl` and `pm` override stock entries on purpose (nginx warns at start).
+          # Source code, configuration and text files are served as text the browser
+          # displays, not as application/octet-stream, which it downloads; a file with
+          # no extension or with an extension in no table is text too (default_type).
+          # The bytes are unchanged; only the Content-Type is. `map` keeps the stock
+          # default, so a source map is served as before. Why the charset is in the
+          # type, the four overrides nginx warns about at start-up and the accepted
+          # costs: docs/architecture.md, "The site server".
           types {
               application/javascript mjs cjs;
               application/manifest+json webmanifest;
+              application/octet-stream map;
               "text/plain; charset=utf-8" py pyi pyw pyx pxd;
               "text/plain; charset=utf-8" ts tsx mts cts jsx;
               "text/plain; charset=utf-8" rs;
