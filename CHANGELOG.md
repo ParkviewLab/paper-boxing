@@ -16,6 +16,22 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.1.1] - 2026-09-17
+
+### Highlights
+
+This release is documentation-only: the hand-off design brief is replaced by architecture.md and decisions.md, and the README, API contract, deployment guide, LICENSING, northstar and CONTRIBUTING are brought into line with the released state. The docs/ folder is also published as a GitHub Pages site, with HTML twins of the northstar and architecture documents.
+
+### Docs
+
+- V0.1.0 [skip ci] (5f1028d)
+- Bring README, API contract, deployment guide and LICENSING to the released state (#7) (235f0ae)
+- Architecture and decisions in place of the design brief; the northstar at the released state (#8) (342799b)
+
+### Features
+
+- Publish docs/ as the documentation site, with the northstar and architecture twins (#9) (f4ce511)
+
 ## [v0.1.0] - 2026-09-17
 
 ### Highlights
