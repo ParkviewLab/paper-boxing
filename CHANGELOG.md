@@ -16,6 +16,20 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-09-18
+
+### Highlights
+
+The header label beside the logo now renders in Michroma, with the project name at 21 px and the version at 12 px sharing a baseline, and the logo, link and label no longer shrink so a narrow header wraps its row instead.
+
+### Docs
+
+- V0.3.0 [skip ci] (9a8b26a)
+
+### Features
+
+- Set the header label in Michroma, the version on the name's baseline (#15) (82308c9)
+
 ## [v0.3.0] - 2026-09-17
 
 ### Highlights
