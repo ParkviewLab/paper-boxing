@@ -14,7 +14,7 @@ paper-boxing is where a project's documents live during early design and specifi
 
 ## Status
 
-Released: [v0.1.0](https://github.com/ParkviewLab/paper-boxing/releases/tag/v0.1.0). The three paper-boxing images are on GHCR, tagged as [Releasing](#releasing) describes. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
+Released; the newest version is on the [releases page](https://github.com/ParkviewLab/paper-boxing/releases/latest), and the three paper-boxing images are on GHCR, tagged as [Releasing](#releasing) describes. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
 
 Four containers make a deployment:
 
