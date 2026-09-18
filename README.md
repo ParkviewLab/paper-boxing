@@ -8,11 +8,13 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 A small site manager for a private home lab: named sites of static files served unchanged on the LAN, a web UI for people, and an MCP server for agents, all in Docker.
 
-paper-boxing is where a project's documents live during early design and specification, before its first release, where a project that has a repository previews its documentation site before the release that publishes it (the site build's output uploaded as a site), and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change. Several people can have accounts, all of equal standing: any account may create sites, tokens and other accounts, and may remove any of them, except the last account. There are two kinds of token: a session, issued when a person signs in to the UI, and an agent token, which a signed-in person creates in the UI with a scope; an agent is any MCP client holding one, such as a Claude Code session.
+Documentation: <https://parkviewlab.github.io/paper-boxing/> (the newest release's documentation)
+
+paper-boxing is where a project's documents live during early design and specification, before its first release, where a project that has a repository previews its documentation site before the release that publishes it (the site build's output uploaded as a site), where an uploaded page, generated on another machine, reports the state of running systems, and where anything private lives permanently. Designed HTML pages, visual explorations, specifications: uploaded by a person or by an agent, served at a stable address such as `http://<host>:35841/<site>/`, replaced in place as they change. Several people can have accounts, all of equal standing: any account may create sites, tokens and other accounts, and may remove any of them, except the last account. There are two kinds of token: a session, issued when a person signs in to the UI, and an agent token, which a signed-in person creates in the UI with a scope; an agent is any MCP client holding one, such as a Claude Code session.
 
 ## Status
 
-Released: [v0.1.0](https://github.com/ParkviewLab/paper-boxing/releases/tag/v0.1.0). The three paper-boxing images are on GHCR, tagged as [Releasing](#releasing) describes. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
+Released; the newest version is on the [releases page](https://github.com/ParkviewLab/paper-boxing/releases/latest), and the three paper-boxing images are on GHCR, tagged as [Releasing](#releasing) describes. The backend's REST API, the frontend's pages and the MCP server's tools share the contract in [`docs/api.md`](docs/api.md), and an integration tier runs the four-container stack end to end on every pull request. The architecture is [`docs/architecture.md`](docs/architecture.md), the record of decisions [`docs/decisions.md`](docs/decisions.md) and the intent [`docs/northstar.md`](docs/northstar.md).
 
 Four containers make a deployment:
 
@@ -52,7 +54,7 @@ Frontend, port 35840: the pages `/login`, `/` (sites), `/sites/<slug>` (with `?p
 
 MCP server, port 35842: `POST /mcp` (Streamable HTTP; `GET` and `DELETE` answer 405), `/sse` (the old HTTP+SSE path, which answers 405 naming `/mcp`; [`docs/api.md`](docs/api.md#mcp-tools)), `GET /health`, `GET /admin/version`, `GET /docs`, `GET /openapi.json`.
 
-Site server, port 35841: `GET /<site>/...`, the files as uploaded. A folder with no `index.html` shows nginx's listing.
+Site server, port 35841: `GET /<site>/...`, the files as uploaded. A folder with no `index.html` shows nginx's listing. Source code, configuration, data and plain-text files, and a file with no extension, are served as `text/plain` so the browser displays them rather than downloading them; an extension in no table keeps nginx's stock `application/octet-stream`, so an archive or a font downloads as before. The groups are named in [`docs/architecture.md`](docs/architecture.md#the-site-server), the compose file's `types` block is the list, and `tests/_site_server_types.py` is the check on it.
 
 `/health` returns `{ok, version, uptime_seconds}` on all three services.
 
