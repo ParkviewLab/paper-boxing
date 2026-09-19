@@ -85,7 +85,11 @@ jobs:
   # Documented slot (docs/decisions.md, "images on GHCR only" and "one
   # distribution and one Dockerfile with three targets"): three images from
   # one Dockerfile, one matrix leg per component, each with its own cache
-  # scope so the three parallel builds don't clobber a shared cache.
+  # scope so the three parallel builds don't clobber a shared cache. Each
+  # leg also pushes ghcr.io/parkviewlab/paper-boxing-<component>, not the
+  # part's ghcr.io/${{ github.repository }}: three images need three names,
+  # and these are the names every release since 0.1.0 has published and
+  # docker-compose.yml pulls.
   docker:
     needs: gate
     runs-on: ubuntu-latest
