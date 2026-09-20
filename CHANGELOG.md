@@ -16,6 +16,18 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.4.1] - 2026-09-19
+
+### Highlights
+
+This release contains only release-tooling and CI changes, with no user-visible effect on the sites, web UI, or MCP server. The release workflow is now assembled from the handbook's shared parts, which adds a check rejecting tags whose version still carries a `.devN`/`-devN` marker, narrows `packages: write` to the image-building job, and switches changelog generation to dev-tools' shared script. Documentation in the README, contributing guide, and changelog preamble was updated to match.
+
+### Maintenance
+
+- Drop the shallow re-fetch from the version guard (#16)
+- Assemble the release workflows from the handbook's parts (#17)
+- Generate the changelog with dev-tools' shared script (#18)
+
 ## [v0.4.0] - 2026-09-18
 
 ### Highlights
