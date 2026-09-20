@@ -139,7 +139,7 @@ The workflow runs a **gate** (tag equals the version, tag reachable from `main`,
 
 ### Commit message convention
 
-PRs are squash-merged with the PR title as the commit subject, so the PR title carries the [Conventional Commit](https://www.conventionalcommits.org/) prefix that [`cliff.toml`](cliff.toml) reads: `feat:` and `fix:` and `perf:` are user-visible sections, `refactor:`, `docs:` and `test:` have their own, and `chore:`, `ci:`, `build:` and `style:` are dropped from the changelog but stay in history; merge commits are dropped as well, and a `Revert` commit goes to a Reverts section. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+PRs are squash-merged with the PR title as the commit subject, so the PR title carries the [Conventional Commit](https://www.conventionalcommits.org/) prefix that the changelog generator reads: `feat:` and `fix:` and `perf:` are user-visible sections, `refactor:`, `docs:` and `test:` have their own, and `chore:`, `ci:`, `build:` and `style:` are dropped from the changelog but stay in history; merge commits are dropped as well, and a `Revert` commit goes to a Reverts section. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 ## License
 
