@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# What this repository publishes, and where it differs from the handbook's
+# release parts (dev-tools' assemble-workflows --check; see the handbook's
+# ci.md, "Shared release workflows").
+targets = ["docker"]
+dev = false
+header = """# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+"""
+
+# The three-image matrix (docs/decisions.md, "images on GHCR only" and "one
+# distribution and one Dockerfile with three targets"): one Dockerfile with a
+# target per component, built as a matrix leg per component, each with its own
+# cache scope and its own image name, since docker-compose.yml pulls
+# ghcr.io/parkviewlab/paper-boxing-<component>, not the part's one image per
+# repository.
+[[slots]]
+job = "the head"
+reason = "the three-image matrix, documented in docs/decisions.md"
+
+[[slots]]
+job = "docker"
+reason = "the three-image matrix, documented in docs/decisions.md"
