@@ -13,24 +13,12 @@ This repo follows the ParkviewLab conventions. The essentials:
 ## Branch & PR flow
 
 - Branch off **`develop`** into an ephemeral worktree named with a prefix: `feature-`, `bug-`/`fix-`, `doc-`, `test-`, `ops-`, `ci-`, `build-`, `release-` (hyphen, not slash). See the handbook's [`branching.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/branching.md).
-- Open a PR into **`develop`**. The repo allows merge commits only, so the merge button can only make one; **merging is the maintainer's action**, except the release's back-merge pull request, which `git back-merge` merges under the release's own authorisation. See the handbook's [`branching.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/branching.md#who-merges).
-- A release is cut from **`main`** from the command line, not through a pull request; see [Releasing](#releasing) below.
+- Open a PR into **`develop`**. The repo is **merge-commit only**, so the merge button can only make a merge commit; **merging is the maintainer's action**, except the release's back-merge pull request, which `git back-merge` merges under the release's own authorisation. See the handbook's [`branching.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/branching.md#who-merges).
+- The promotion to `main` is made from the command line, not through a pull request; see [Releasing](#releasing) below.
 
 ## Commit / PR-title convention (this is what the changelog reads)
 
-PRs merge with a merge commit titled `<PR title> (#N)`, so **the PR title becomes the commit subject**, and the changelog is generated from it (by dev-tools' `generate-changelog`, which the release workflow runs at a pinned release). Prefix every PR title with a [Conventional Commit](https://www.conventionalcommits.org/) type:
-
-| Prefix | CHANGELOG section | Notes |
-|---|---|---|
-| `feat:` | Features | user-visible |
-| `fix:` | Bug fixes | user-visible |
-| `perf:` | Performance | user-visible |
-| `refactor:` | Refactor | |
-| `docs:` | Docs | |
-| `test:` | Tests | |
-| `chore:` / `ci:` / `build:` / `style:` | _(dropped)_ | stays in git history, not surfaced |
-
-A PR title without a recognised prefix is **silently dropped** from the changelog. So: prefix it.
+Because a PR is merged with a merge commit titled `<PR title> (#N)`, **the PR title becomes the commit subject**, and the changelog is generated from it (by dev-tools' shared `generate-changelog`, which lists every merged PR by its title, under the section its type names). Prefix every PR title with a [Conventional Commit](https://www.conventionalcommits.org/) type; see the handbook's [`commits-and-changelogs.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/commits-and-changelogs.md#conventional-commit-prefixes) for the groups a title's type is sorted into and what an unrecognised or missing type gets.
 
 ## Local checks before opening a PR
 
@@ -75,18 +63,7 @@ The version lives in **`pyproject.toml` only**; never hard-code it elsewhere, an
 
 ## Releasing
 
-Tag-driven via the `Release` workflow on push of a `v*` tag, which builds and pushes the three images and writes the changelog. The whole flow runs from the command line, in the `paper-boxing-main` worktree, under one authorisation:
-
-```bash
-git pull --ff-only
-git -C ../paper-boxing-develop pull --ff-only
-git merge --no-ff develop
-git bump <patch|minor|major>
-git release
-git push --follow-tags
-```
-
-The release's last step is `git back-merge`, which brings the release back to `develop` through a pull request that the version guard's back-merge mode checks before it is merged, and opens the next development cycle. See the handbook's [`releases.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/releases.md#the-releases-last-step-the-back-merge-pull-request) for the flow.
+See [`README.md`](../README.md#releasing) for the flow: the CLI commands, what the workflow does, and the back-merge that ends the release.
 
 ## AI contributors
 
