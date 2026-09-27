@@ -25,7 +25,7 @@ async def page() -> None:
         with ui.card().classes("w-full"):
             ui.label("Create a site").classes("text-lg")
             ui.label(
-                "The slug is derived from the display name, becomes part of the site's address, and never changes."
+                "The site\u2019s address will be based on the display name and can\u2019t be changed later."
             ).classes("text-grey-7")
             with ui.row().classes("items-center gap-3 w-full"):
                 name = ui.input("Display name").props("outlined dense").classes("grow").mark("site-name")
