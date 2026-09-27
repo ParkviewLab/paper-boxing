@@ -16,6 +16,22 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-09-27
+
+### Highlights
+
+The only user-facing change is on the Sites page: the create-site card's hint now reads "The site's address will be based on the display name. Once created, this address can't be changed.", replacing the earlier wording about slugs being derived from the display name. The rest of the release is internal, covering the removal of the retired changelog generator and a move to merge commits with a back-merge pull request.
+
+### Bug fixes
+
+- Plainer wording for the site address on the create-site card (#21)
+- The create-site card says the address can't be changed once created (#22)
+
+### Maintenance
+
+- Remove the retired changelog generator (#19)
+- Merge commits and the checked back-merge pull request (#20)
+
 ## [v0.4.1] - 2026-09-19
 
 ### Highlights
