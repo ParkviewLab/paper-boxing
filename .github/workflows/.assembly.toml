@@ -13,16 +13,13 @@ header = """# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai
 
 """
 
-# The three-image matrix (docs/decisions.md, "images on GHCR only" and "one
-# distribution and one Dockerfile with three targets"): one Dockerfile with a
-# target per component, built as a matrix leg per component, each with its own
-# cache scope and its own image name, since docker-compose.yml pulls
+# The three-image matrix: one Dockerfile with a target per component, built
+# as a matrix leg per component, each with its own cache scope and its own
+# image name, since docker-compose.yml pulls
 # ghcr.io/parkviewlab/paper-boxing-<component>, not the part's one image per
-# repository.
-[[slots]]
-job = "the head"
-reason = "the three-image matrix, documented in docs/decisions.md"
-
+# repository. Documented in docs/decisions.md ("images on GHCR only" and "one
+# distribution and one Dockerfile with three targets") and in the comment at
+# the docker job in release.yml.
 [[slots]]
 job = "docker"
-reason = "the three-image matrix, documented in docs/decisions.md"
+reason = "documented in docs/decisions.md and the comment at the docker job"

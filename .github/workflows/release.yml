@@ -7,14 +7,6 @@ name: Release
 # Assembled from the ParkviewLab handbook's release parts, one for each of this
 # repository's publish targets: the gate, then the job of each target, then the
 # job that creates the GitHub Release. The recipe is in the handbook's ci.md.
-#
-# This repository's one target is the image, but it is three images from one
-# Dockerfile (docs/decisions.md, "images on GHCR only" and "one distribution
-# and one Dockerfile with three targets"): the docker job below is a matrix
-# over the three components, each built from its own Dockerfile target and
-# its own cache scope so the three parallel builds don't share a cache. That
-# matrix is a documented slot of this repository alone, not a change to the
-# handbook's docker part.
 
 on:
   push:
