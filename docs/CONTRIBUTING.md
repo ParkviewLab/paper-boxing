@@ -13,12 +13,12 @@ This repo follows the ParkviewLab conventions. The essentials:
 ## Branch & PR flow
 
 - Branch off **`develop`** into an ephemeral worktree named with a prefix: `feature-`, `bug-`/`fix-`, `doc-`, `test-`, `ops-`, `ci-`, `build-`, `release-` (hyphen, not slash). See the handbook's [`branching.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/branching.md).
-- Open a PR into **`develop`**. The repo is **squash-only**, so the merge button can only squash; **merging is the maintainer's action.**
+- Open a PR into **`develop`**. The repo allows merge commits only, so the merge button can only make one; **merging is the maintainer's action**, except the release's back-merge pull request, which `git back-merge` merges under the release's own authorisation. See the handbook's [`branching.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/branching.md#who-merges).
 - A release is cut from **`main`** from the command line, not through a pull request; see [Releasing](#releasing) below.
 
 ## Commit / PR-title convention (this is what the changelog reads)
 
-Because PRs are squash-merged, **the PR title becomes the commit subject**, and the changelog is generated from it (by dev-tools' `generate-changelog`, which the release workflow runs at a pinned release). Prefix every PR title with a [Conventional Commit](https://www.conventionalcommits.org/) type:
+PRs merge with a merge commit titled `<PR title> (#N)`, so **the PR title becomes the commit subject**, and the changelog is generated from it (by dev-tools' `generate-changelog`, which the release workflow runs at a pinned release). Prefix every PR title with a [Conventional Commit](https://www.conventionalcommits.org/) type:
 
 | Prefix | CHANGELOG section | Notes |
 |---|---|---|
@@ -86,7 +86,7 @@ git release
 git push --follow-tags
 ```
 
-Then the back-merge cascade: once the workflow is green, `git pull --ff-only` on `main` to pick up the changelog commit, then `main` merged into `develop` with `--no-ff`, and `develop` into each open working branch. The handbook's [`releases.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/releases.md) is the reference for the flow and the cascade.
+The release's last step is `git back-merge`, which brings the release back to `develop` through a pull request that the version guard's back-merge mode checks before it is merged, and opens the next development cycle. See the handbook's [`releases.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/releases.md#the-releases-last-step-the-back-merge-pull-request) for the flow.
 
 ## AI contributors
 

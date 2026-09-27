@@ -60,6 +60,8 @@ Decided: the compose file publishes the backend's port, 35843, beside the fronte
 
 Decided: when the base branch has no version file at all, `.github/workflows/version-guard.yml` passes and says that the file is new. Reason: a version file that is new in a pull request is introduced, not bumped; the handbook's template compares against an empty string there and fails the first pull request of every new repository. Set aside: the template's comparison as it stands.
 
+Noted 2026-09-27: the handbook's `templates/.github/workflows/version-guard.yml` now carries this rule itself (each version file's comparison treats one absent from the base branch as new, not bumped), so this repository's guard no longer departs from the template on this point; the switch to merge commits and the checked back-merge pull request (`ci-real-merges`) brings the guard's back-merge mode in the same file.
+
 ## 2026-09-17: streaming in the frontend
 
 Decided: the frontend's download route streams a file from the backend chunk by chunk into a `StreamingResponse` (`BackendClient.stream_file`), and an upload streams each file with its size declared as `Content-Length` (`BackendClient.upload_file` takes an async iterator); `BackendClient.download_file` stays as the whole-body form for the MCP server. Reason: a file near the backend's cap is never held whole in the frontend's memory nor hashed on the event loop. Set aside: whole-body transfer through the frontend.

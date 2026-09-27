@@ -133,13 +133,13 @@ git release                                     # annotated tag vX.Y.Z from pypr
 git push --follow-tags                          # the tag push fires the workflow
 ```
 
-Once the workflow is green, the back-merge cascade brings `main`'s release and changelog commits down: `main` into `develop` with `--no-ff` (`git -C ../paper-boxing-develop merge --no-ff main`), then `develop` into each open working branch, and `develop` opens the next development cycle (`X.Y.(Z+1).dev0` in `pyproject.toml`).
+The release's last step is `git back-merge`, which brings the release back to `develop` through a pull request that the version guard's back-merge mode checks before merging it, and opens the next development cycle (`X.Y.(Z+1).dev0` in `pyproject.toml`). See the handbook's [`releases.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/releases.md#the-releases-last-step-the-back-merge-pull-request).
 
 The workflow runs a **gate** (tag equals the version, tag reachable from `main`, version greater than the previous tag), then a **docker** matrix that builds and pushes the three images for amd64 and arm64 with the `X.Y.Z`, `X.Y` and `latest` tags, then a **changelog** job that writes the new [`CHANGELOG.md`](CHANGELOG.md) section (an LLM-written Highlights paragraph plus [`git-cliff`](https://git-cliff.org/)'s categorized list), commits it to `main`, and creates the GitHub Release. There is no PyPI publish.
 
 ### Commit message convention
 
-PRs are squash-merged with the PR title as the commit subject, so the PR title carries the [Conventional Commit](https://www.conventionalcommits.org/) prefix that the changelog generator reads: `feat:` and `fix:` and `perf:` are user-visible sections, `refactor:`, `docs:` and `test:` have their own, and `chore:`, `ci:`, `build:` and `style:` are dropped from the changelog but stay in history; merge commits are dropped as well, and a `Revert` commit goes to a Reverts section. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+PRs merge with a merge commit titled `<PR title> (#N)`, so the PR title carries the [Conventional Commit](https://www.conventionalcommits.org/) prefix that the changelog generator reads: `feat:` and `fix:` and `perf:` are user-visible sections, `refactor:`, `docs:` and `test:` have their own, and `chore:`, `ci:`, `build:` and `style:` are dropped from the changelog but stay in history; the release's promotion and back-merge merges are bookkeeping and dropped as well, and a `Revert` commit goes to a Reverts section. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 ## License
 
