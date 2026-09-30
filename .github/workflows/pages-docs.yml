@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: ParkviewLab/dev-tools
-          ref: v1.1.0           # the build script's release; bump deliberately
+          ref: v1.5.2           # the build script's release; bump deliberately
           path: dev-tools
 
       - uses: actions/setup-python@v6
