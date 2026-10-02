@@ -16,6 +16,21 @@ Keep-a-Changelog ordering: [Unreleased] at the top, then newest released version
 
 ## [Unreleased]
 
+## [v0.4.3] - 2026-10-02
+
+### Highlights
+
+This release is documentation and maintenance only, with no change to the application itself: the changelog preamble, deployment guide, decision records and contributing notes were corrected to match current practice, and the repository was brought into line with handbook v2.1.0 and newer pinned dev-tools workflows. The one change readers will notice is on the published docs site, whose index now lists page titles without the "ParkviewLab ·" prefix once the site is rebuilt.
+
+### Docs
+
+- The assembly file cites ci.md's section by its name (#24)
+- Bring the changelog preamble, deployment guide and records current before 0.4.3 (#26)
+
+### Maintenance
+
+- Align with handbook v2.1.0 (#25)
+
 ## [v0.4.2] - 2026-09-27
 
 ### Highlights
