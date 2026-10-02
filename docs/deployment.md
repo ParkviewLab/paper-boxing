@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Deployment
 
-How to run the paper-boxing stack, with `docker compose` or as a Portainer stack, and how to build its images from a checkout. It is written for any reader of the public repository and names no private host or secret: `<host>` stands for the name or address at which your LAN reaches the Docker host, `<token>` for an agent token you created, `<project>` for the compose project or Portainer stack name, and `lab-host.local` is the placeholder for a concrete host name where an example needs one; substitute your own. An integration tier brings a stack built from this tree up on every pull request and exercises the behaviour the examples below show. The Portainer walkthrough is derived from the compose file and from Portainer's documented behaviour and has not been exercised in a Portainer.
+How to run the paper-boxing stack, with `docker compose` or as a Portainer stack, and how to build its images from a checkout. It is written for any reader of the public repository and names no private host or secret: `<host>` stands for the name or address at which your LAN reaches the Docker host, `<token>` for an agent token you created, `<project>` for the compose project or Portainer stack name, and `lab-host.local` is the placeholder for a concrete host name where an example needs one; substitute your own. An integration tier brings a stack built from this tree up on every pull request and exercises the behaviour the examples below show. The compose file, its inline nginx configuration included, runs as a Portainer CE 2.45 stack created from the file through Portainer's API; the editor and repository routes below have not been walked through as written.
 
 The deployment model, stated plainly (the README says the same): a home lab's private LAN, plain HTTP, no TLS, no lockout after failed sign-ins. Passwords and tokens travel unencrypted between a browser or an agent and the stack. Do not expose the ports to the internet.
 
@@ -91,7 +91,7 @@ PAPER_BOXING_MCP_ALLOWED_HOSTS=lab-host.local:35842,localhost:*,127.0.0.1:*
 ```bash
 docker compose logs backend
 # paper-boxing-backend  | INFO: created the first account user=admin from the admin variables
-# paper-boxing-backend  | INFO:     paper-boxing-backend v0.1.0 ready (data_dir=/data, public_sites_url=http://lab-host.local:35841, max_upload_mb=200, session_days=14)
+# paper-boxing-backend  | INFO:     paper-boxing-backend vX.Y.Z ready (data_dir=/data, public_sites_url=http://lab-host.local:35841, max_upload_mb=200, session_days=14)
 ```
 
 Open `http://<host>:35840/`, sign in with the admin pair, and create the accounts and tokens you need. To stop and start the stack without touching anything, `docker compose stop` and `docker compose start`. `docker compose down` removes the containers and the network and keeps the volume; `docker compose down -v` deletes the volume too, every site and account with it.
@@ -134,7 +134,7 @@ curl -s -X POST http://<host>:35842/mcp \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
 # event: message
-# data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"experimental":{},"tools":{"listChanged":false}},"serverInfo":{"name":"paper-boxing-mcp","version":"0.1.0"}}}
+# data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"experimental":{},"tools":{"listChanged":false}},"serverInfo":{"name":"paper-boxing-mcp","version":"X.Y.Z"}}}
 ```
 
 The MCP server confirms the token with the backend on every request and accepts agent tokens only: a UI session token is refused with `403 wrong_token_type`, an unknown or revoked one with `401 unauthorized`. A tool call carries a file of up to `PAPER_BOXING_MCP_MAX_FILE_MB`; for a larger file the refusal names the REST route, `PUT` or `GET /api/v1/sites/{slug}/files/{path}`, which the same agent token uses on the backend's published port, `http://<host>:35843`.

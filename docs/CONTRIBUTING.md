@@ -33,7 +33,7 @@ uv run pytest -m "not network and not integration" -q
 uvx --from "reuse[charset-normalizer]" reuse lint
 ```
 
-A PR **can't be merged until the required checks pass**: the workflows in [`.github/workflows/`](../.github/workflows/). Push after each commit. See also the handbook's [`python-tooling.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/python-tooling.md) and [`testing.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/testing.md).
+A PR **can't be merged until the required checks pass on a branch up to date with `develop`**: the workflows in [`.github/workflows/`](../.github/workflows/). Administrators are bound too. Push after each commit. See also the handbook's [`python-tooling.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/python-tooling.md) and [`testing.md`](https://github.com/ParkviewLab/handbook/blob/main/docs/testing.md).
 
 ## Testing
 

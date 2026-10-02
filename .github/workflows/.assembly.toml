@@ -4,7 +4,7 @@
 
 # What this repository publishes, and where it differs from the handbook's
 # release parts (dev-tools' assemble-workflows --check; see the handbook's
-# ci.md, "Shared release workflows").
+# ci.md, "`release.yml`: on `v*` tag push").
 targets = ["docker"]
 dev = false
 header = """# SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai>
