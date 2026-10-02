@@ -56,7 +56,7 @@ The same axioms support all the intents, from different angles.
 
 1. **One writer.** Only the backend touches the files and the database, and every rule about sites, files, accounts and scopes lives there once. Every other component is its client.
 
-2. **Serve what was stored.** No transformation between upload and response, no history, nothing executed on the server side. If a page as served differs from the page as uploaded, that is a defect; the one page generated on the server is the site server's listing of a folder without an `index.html`.
+2. **Serve what was stored.** No transformation between upload and response, no history, nothing executed on the server side. If a page as served differs from the page as uploaded, that is a defect; the one page of content generated on the server is the site server's listing of a folder without an `index.html`.
 
 3. **Addresses are permanent.** A site's slug and the site server's port never change; a link placed elsewhere keeps working for as long as the site exists.
 
@@ -79,7 +79,7 @@ When making a decision, these are the questions to keep answering:
 ## What paper-boxing is not
 
 - **Not a wiki.** The wiki of the home lab this was built for (BookStack) stays the wiki; its pages link to the sites paper-boxing serves. paper-boxing holds files, not articles.
-- **Not a CMS or a build system.** It renders nothing, builds nothing and runs nothing on the server side; the one page generated on the server is nginx's listing of a folder without an `index.html`.
+- **Not a CMS or a build system.** It renders nothing, builds nothing and runs nothing on the server side; the one page of content generated on the server is nginx's listing of a folder without an `index.html`.
 - **Not a public host.** It is designed for a private LAN over plain HTTP, not for the internet or for users who do not trust one another.
 - **Not a replacement for a released project's GitHub Pages site.** A released project's documentation is published from its repository's Pages site; paper-boxing previews that site before the release, and keeps what stays private.
 - **Not a version store.** It keeps no history; a repository does that.
